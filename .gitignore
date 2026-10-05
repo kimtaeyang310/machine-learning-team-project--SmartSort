@@ -26,3 +26,14 @@ results/
 
 # 환경점검 임시 생성 이미지
 env_test.png
+
+# 직접 작성한 라벨 공유
+!data/metadata/labels.csv
+
+# 프로젝트 원본 이미지 공유
+!data/raw/**/*.jpg
+!data/raw/**/*.jpeg
+!data/raw/**/*.png
+!data/raw/**/*.JPG
+!data/raw/**/*.JPEG
+!data/raw/**/*.PNG
