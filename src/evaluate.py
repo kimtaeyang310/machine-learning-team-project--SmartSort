@@ -1,1 +1,1 @@
-#evaluate
+#5. evaluate :  전체·과일별 성능 평가

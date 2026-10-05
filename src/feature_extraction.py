@@ -1,1 +1,1 @@
-#feature_extraction
+#3. feature_extraction : 과일 영역의 HSV 평균·색상 비율 등 계산

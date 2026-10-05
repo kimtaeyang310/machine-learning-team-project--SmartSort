@@ -2,3 +2,5 @@ scikit-learn
 lightgbm
 xgboost
 opencv-python
+numpy
+pandas
