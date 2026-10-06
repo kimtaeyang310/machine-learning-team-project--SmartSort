@@ -2,6 +2,7 @@
 mandarin,M01,2026-10-02,unripe
 mandarin,M01,2026-10-04,unripe
 <<<<<<< HEAD
+<<<<<<< HEAD
 mandarin,M01,2026-10-05,unripe
 mandarin,M02,2026-10-02,unripe
 mandarin,M02,2026-10-04,unripe
@@ -31,22 +32,37 @@ tomato,T05,2026-10-02,ripe
 tomato,T05,2026-10-04,ripe
 tomato,T05,2026-10-05,ripe
 =======
+=======
+mandarin,M01,2026-10-05,unripe
+>>>>>>> 360b53c (dataset구동실험완료)
 mandarin,M02,2026-10-02,unripe
 mandarin,M02,2026-10-04,unripe
+mandarin,M02,2026-10-05,unripe
 mandarin,M03,2026-10-02,unripe
 mandarin,M03,2026-10-04,unripe
+mandarin,M03,2026-10-05,unripe
 mandarin,M04,2026-10-02,ripe
 mandarin,M04,2026-10-04,ripe
+mandarin,M04,2026-10-05,ripe
 mandarin,M05,2026-10-02,ripe
 mandarin,M05,2026-10-04,ripe
+mandarin,M05,2026-10-05,ripe
 tomato,T01,2026-10-02,unripe
 tomato,T01,2026-10-04,unripe
+tomato,T01,2026-10-05,unripe
 tomato,T02,2026-10-02,ripe
 tomato,T02,2026-10-04,overripe
+tomato,T02,2026-10-05,overripe
 tomato,T03,2026-10-02,ripe
 tomato,T03,2026-10-04,ripe
+tomato,T03,2026-10-05,overripe
 tomato,T04,2026-10-02,ripe
 tomato,T04,2026-10-04,ripe
+tomato,T04,2026-10-05,ripe
 tomato,T05,2026-10-02,ripe
 tomato,T05,2026-10-04,ripe
+<<<<<<< HEAD
 >>>>>>> 0551eff (dataset, preprocessing작성완료 및 파일별 수행해야할 목록 정리)
+=======
+tomato,T05,2026-10-05,ripe
+>>>>>>> 360b53c (dataset구동실험완료)
