@@ -4,3 +4,5 @@ xgboost
 opencv-python
 numpy
 pandas
+scikit-learn
+joblib
