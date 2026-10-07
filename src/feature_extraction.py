@@ -1,4 +1,6 @@
-#3. feature_extraction : 과일 영역의 HSV 평균·색상 비율 등 계산
+# ============================================================
+# 3. feature_extraction : 과일 영역의 HSV 평균·색상 비율 등 계산
+# ============================================================
 
 """
 SmartSort - 과일 숙도 판별용 특징 추출
@@ -9,6 +11,7 @@ SmartSort - 과일 숙도 판별용 특징 추출
 3. HSV 기반 특징 추출
 4. 성공한 결과를 fruit_features.csv에 저장
 5. 실패한 이미지와 실패 이유를 feature_extraction_failed.csv에 저장
+6. 전처리에 실패한 이미지를 outputs/preprocessing_failed에 저장
 
 실행 방법
 프로젝트 루트에서:
@@ -23,7 +26,11 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from src.preprocessing import preprocess
+from src.preprocessing import (
+    preprocess,
+    save_failed_image,
+)
+
 from src.dataset import load_dataset
 
 
@@ -38,6 +45,17 @@ FEATURE_DIR = PROJECT_ROOT / "data" / "features"
 FEATURE_CSV = FEATURE_DIR / "fruit_features.csv"
 
 FAILED_CSV = FEATURE_DIR / "feature_extraction_failed.csv"
+
+
+# ------------------------------------------------------------
+# 전처리 실패 이미지 저장 폴더
+# ------------------------------------------------------------
+
+PREPROCESSING_FAILED_DIR = (
+    PROJECT_ROOT
+    / "outputs"
+    / "preprocessing_failed"
+)
 
 
 # ============================================================
@@ -93,7 +111,9 @@ def get_fruit_pixels(hsv, mask):
     fruit_pixels = hsv[mask > 0]
 
     if len(fruit_pixels) == 0:
-        raise ValueError("과일 영역의 픽셀이 없습니다.")
+        raise ValueError(
+            "과일 영역의 픽셀이 없습니다."
+        )
 
     return fruit_pixels
 
@@ -107,11 +127,22 @@ def calculate_hsv_mean(hsv, mask):
     과일 영역의 H, S, V 평균을 계산한다.
     """
 
-    fruit_pixels = get_fruit_pixels(hsv, mask)
+    fruit_pixels = get_fruit_pixels(
+        hsv,
+        mask,
+    )
 
-    h_mean = float(np.mean(fruit_pixels[:, 0]))
-    s_mean = float(np.mean(fruit_pixels[:, 1]))
-    v_mean = float(np.mean(fruit_pixels[:, 2]))
+    h_mean = float(
+        np.mean(fruit_pixels[:, 0])
+    )
+
+    s_mean = float(
+        np.mean(fruit_pixels[:, 1])
+    )
+
+    v_mean = float(
+        np.mean(fruit_pixels[:, 2])
+    )
 
     return {
         "h_mean": h_mean,
@@ -135,11 +166,22 @@ def calculate_hsv_std(hsv, mask):
         → 과일 내부의 색상이 비교적 균일하다
     """
 
-    fruit_pixels = get_fruit_pixels(hsv, mask)
+    fruit_pixels = get_fruit_pixels(
+        hsv,
+        mask,
+    )
 
-    h_std = float(np.std(fruit_pixels[:, 0]))
-    s_std = float(np.std(fruit_pixels[:, 1]))
-    v_std = float(np.std(fruit_pixels[:, 2]))
+    h_std = float(
+        np.std(fruit_pixels[:, 0])
+    )
+
+    s_std = float(
+        np.std(fruit_pixels[:, 1])
+    )
+
+    v_std = float(
+        np.std(fruit_pixels[:, 2])
+    )
 
     return {
         "h_std": h_std,
@@ -163,7 +205,10 @@ def calculate_hsv_histogram(hsv, mask):
     총 28개의 특징이 만들어진다.
     """
 
-    fruit_pixels = get_fruit_pixels(hsv, mask)
+    fruit_pixels = get_fruit_pixels(
+        hsv,
+        mask,
+    )
 
     features = {}
 
@@ -212,13 +257,22 @@ def calculate_hsv_histogram(hsv, mask):
     # --------------------------------------------------------
 
     for i, value in enumerate(h_hist):
-        features[f"h_hist_{i}"] = float(value)
+
+        features[
+            f"h_hist_{i}"
+        ] = float(value)
 
     for i, value in enumerate(s_hist):
-        features[f"s_hist_{i}"] = float(value)
+
+        features[
+            f"s_hist_{i}"
+        ] = float(value)
 
     for i, value in enumerate(v_hist):
-        features[f"v_hist_{i}"] = float(value)
+
+        features[
+            f"v_hist_{i}"
+        ] = float(value)
 
     return features
 
@@ -244,7 +298,10 @@ def calculate_color_ratios(hsv, mask):
     색상 분류에서 제외한다.
     """
 
-    fruit_pixels = get_fruit_pixels(hsv, mask)
+    fruit_pixels = get_fruit_pixels(
+        hsv,
+        mask,
+    )
 
     H = fruit_pixels[:, 0]
     S = fruit_pixels[:, 1]
@@ -254,17 +311,26 @@ def calculate_color_ratios(hsv, mask):
     # 너무 흐리거나 어두운 픽셀 제외
     # --------------------------------------------------------
 
-    valid = (S >= 40) & (V >= 30)
+    valid = (
+        (S >= 40)
+        & (V >= 30)
+    )
 
     valid_h = H[valid]
 
     features = {}
 
+    # --------------------------------------------------------
     # 유효한 색상 픽셀이 하나도 없는 경우
+    # --------------------------------------------------------
+
     if len(valid_h) == 0:
 
         for color_name in COLOR_RANGES:
-            features[f"{color_name}_ratio"] = 0.0
+
+            features[
+                f"{color_name}_ratio"
+            ] = 0.0
 
         return features
 
@@ -274,7 +340,9 @@ def calculate_color_ratios(hsv, mask):
 
     total = len(valid_h)
 
-    for color_name, ranges in COLOR_RANGES.items():
+    for color_name, ranges in (
+        COLOR_RANGES.items()
+    ):
 
         color_count = 0
 
@@ -287,7 +355,9 @@ def calculate_color_ratios(hsv, mask):
 
         ratio = color_count / total
 
-        features[f"{color_name}_ratio"] = float(ratio)
+        features[
+            f"{color_name}_ratio"
+        ] = float(ratio)
 
     return features
 
@@ -304,14 +374,19 @@ def calculate_dark_ratio(hsv, mask):
     숙도 판별에 도움이 될 수 있다.
     """
 
-    fruit_pixels = get_fruit_pixels(hsv, mask)
+    fruit_pixels = get_fruit_pixels(
+        hsv,
+        mask,
+    )
 
     V = fruit_pixels[:, 2]
 
     dark_ratio = np.mean(V < 60)
 
     return {
-        "dark_ratio": float(dark_ratio),
+        "dark_ratio": float(
+            dark_ratio
+        ),
     }
 
 
@@ -319,18 +394,26 @@ def calculate_dark_ratio(hsv, mask):
 # 9. 낮은 채도 비율
 # ============================================================
 
-def calculate_low_saturation_ratio(hsv, mask):
+def calculate_low_saturation_ratio(
+    hsv,
+    mask,
+):
     """
     S 값이 40보다 작은 픽셀의 비율.
 
     색이 선명하지 않은 영역이 얼마나 있는지 나타낸다.
     """
 
-    fruit_pixels = get_fruit_pixels(hsv, mask)
+    fruit_pixels = get_fruit_pixels(
+        hsv,
+        mask,
+    )
 
     S = fruit_pixels[:, 1]
 
-    low_saturation_ratio = np.mean(S < 40)
+    low_saturation_ratio = np.mean(
+        S < 40
+    )
 
     return {
         "low_saturation_ratio": float(
@@ -350,6 +433,7 @@ def extract_features(processed):
     """
 
     hsv = processed["hsv"]
+
     mask = processed["mask"]
 
     features = {}
@@ -359,7 +443,10 @@ def extract_features(processed):
     # --------------------------------------------------------
 
     features.update(
-        calculate_hsv_mean(hsv, mask)
+        calculate_hsv_mean(
+            hsv,
+            mask,
+        )
     )
 
     # --------------------------------------------------------
@@ -367,7 +454,10 @@ def extract_features(processed):
     # --------------------------------------------------------
 
     features.update(
-        calculate_hsv_std(hsv, mask)
+        calculate_hsv_std(
+            hsv,
+            mask,
+        )
     )
 
     # --------------------------------------------------------
@@ -375,7 +465,10 @@ def extract_features(processed):
     # --------------------------------------------------------
 
     features.update(
-        calculate_hsv_histogram(hsv, mask)
+        calculate_hsv_histogram(
+            hsv,
+            mask,
+        )
     )
 
     # --------------------------------------------------------
@@ -383,7 +476,10 @@ def extract_features(processed):
     # --------------------------------------------------------
 
     features.update(
-        calculate_color_ratios(hsv, mask)
+        calculate_color_ratios(
+            hsv,
+            mask,
+        )
     )
 
     # --------------------------------------------------------
@@ -391,7 +487,10 @@ def extract_features(processed):
     # --------------------------------------------------------
 
     features.update(
-        calculate_dark_ratio(hsv, mask)
+        calculate_dark_ratio(
+            hsv,
+            mask,
+        )
     )
 
     # --------------------------------------------------------
@@ -399,7 +498,10 @@ def extract_features(processed):
     # --------------------------------------------------------
 
     features.update(
-        calculate_low_saturation_ratio(hsv, mask)
+        calculate_low_saturation_ratio(
+            hsv,
+            mask,
+        )
     )
 
     # --------------------------------------------------------
@@ -414,7 +516,9 @@ def extract_features(processed):
     # 과일 픽셀 개수
     # --------------------------------------------------------
 
-    features["fruit_pixel_count"] = int(
+    features[
+        "fruit_pixel_count"
+    ] = int(
         np.sum(mask > 0)
     )
 
@@ -448,7 +552,9 @@ def extract_sample_features(sample):
         denoise=True,
     )
 
-    features = extract_features(processed)
+    features = extract_features(
+        processed
+    )
 
     # --------------------------------------------------------
     # 이미지 정보 + 특징을 하나의 dictionary로 합치기
@@ -497,32 +603,38 @@ def build_feature_dataset(samples):
     print("=" * 70)
     print("특징 추출 시작")
     print("=" * 70)
-    print(f"전체 이미지 수: {total}")
+
+    print(
+        f"전체 이미지 수: {total}"
+    )
+
     print()
 
     # --------------------------------------------------------
     # 이미지 하나씩 처리
     # --------------------------------------------------------
 
-    for index, sample in enumerate(samples, start=1):
+    for index, sample in enumerate(
+        samples,
+        start=1,
+    ):
 
         try:
 
-            features = extract_sample_features(sample)
+            features = extract_sample_features(
+                sample
+            )
 
-            feature_rows.append(features)
+            feature_rows.append(
+                features
+            )
 
             print(
                 f"[{index}/{total}] 완료: "
                 f"{sample['image_path']}"
             )
 
-        except (
-            ValueError,
-            OSError,
-            cv2.error,
-            Exception,
-        ) as error:
+        except Exception as error:
 
             print(
                 f"[{index}/{total}] 실패: "
@@ -534,7 +646,47 @@ def build_feature_dataset(samples):
             )
 
             # ------------------------------------------------
-            # 실패한 이미지 정보 저장
+            # 실패 이미지 저장 경로 생성
+            # ------------------------------------------------
+
+            relative_path = Path(
+                sample["image_path"]
+            )
+
+            failed_output_path = (
+                PREPROCESSING_FAILED_DIR
+                / relative_path.parent
+                / f"{relative_path.stem}_failed.png"
+            )
+
+            # ------------------------------------------------
+            # 실패 이미지 + 과일 + 숙도 + 실패 원인 저장
+            # ------------------------------------------------
+
+            try:
+
+                save_failed_image(
+                    image_path=sample["path"],
+                    output_path=failed_output_path,
+                    fruit=sample["fruit"],
+                    ripeness=sample["ripeness"],
+                    error_message=str(error),
+                )
+
+                print(
+                    f"    실패 이미지 저장: "
+                    f"{failed_output_path}"
+                )
+
+            except Exception as save_error:
+
+                print(
+                    f"    실패 이미지 저장 실패: "
+                    f"{save_error}"
+                )
+
+            # ------------------------------------------------
+            # 실패 CSV에 기록
             # ------------------------------------------------
 
             failed_samples.append(
@@ -548,7 +700,14 @@ def build_feature_dataset(samples):
                 }
             )
 
-    return feature_rows, failed_samples
+    # --------------------------------------------------------
+    # 모든 이미지 처리가 끝난 후 결과 반환
+    # --------------------------------------------------------
+
+    return (
+        feature_rows,
+        failed_samples,
+    )
 
 
 # ============================================================
@@ -567,11 +726,15 @@ def save_features(
     if not feature_rows:
 
         print()
-        print("저장할 특징 데이터가 없습니다.")
+        print(
+            "저장할 특징 데이터가 없습니다."
+        )
 
         return
 
-    output_path = Path(output_path)
+    output_path = Path(
+        output_path
+    )
 
     output_path.parent.mkdir(
         parents=True,
@@ -582,7 +745,9 @@ def save_features(
     # 모든 컬럼 이름 가져오기
     # --------------------------------------------------------
 
-    fieldnames = list(feature_rows[0].keys())
+    fieldnames = list(
+        feature_rows[0].keys()
+    )
 
     # --------------------------------------------------------
     # CSV 저장
@@ -601,14 +766,23 @@ def save_features(
 
         writer.writeheader()
 
-        writer.writerows(feature_rows)
+        writer.writerows(
+            feature_rows
+        )
 
     print()
     print("=" * 70)
     print("특징 데이터 저장 완료")
     print("=" * 70)
-    print(f"파일: {output_path}")
-    print(f"저장된 이미지 수: {len(feature_rows)}")
+
+    print(
+        f"파일: {output_path}"
+    )
+
+    print(
+        f"저장된 이미지 수: "
+        f"{len(feature_rows)}"
+    )
 
 
 # ============================================================
@@ -631,11 +805,15 @@ def save_failed_samples(
     if not failed_samples:
 
         print()
-        print("실패한 이미지가 없습니다.")
+        print(
+            "실패한 이미지가 없습니다."
+        )
 
         return
 
-    output_path = Path(output_path)
+    output_path = Path(
+        output_path
+    )
 
     output_path.parent.mkdir(
         parents=True,
@@ -668,21 +846,32 @@ def save_failed_samples(
 
         writer.writeheader()
 
-        writer.writerows(failed_samples)
+        writer.writerows(
+            failed_samples
+        )
 
     print()
     print("=" * 70)
     print("실패 이미지 목록 저장 완료")
     print("=" * 70)
-    print(f"파일: {output_path}")
-    print(f"실패한 이미지 수: {len(failed_samples)}")
+
+    print(
+        f"파일: {output_path}"
+    )
+
+    print(
+        f"실패한 이미지 수: "
+        f"{len(failed_samples)}"
+    )
 
 
 # ============================================================
 # 15. 실패 원인 요약
 # ============================================================
 
-def print_failure_summary(failed_samples):
+def print_failure_summary(
+    failed_samples,
+):
     """
     실패한 이미지가 어떤 과일에서 많이 발생했는지
     간단하게 요약한다.
@@ -704,7 +893,9 @@ def print_failure_summary(failed_samples):
 
     for sample in failed_samples:
 
-        fruit_counts[sample["fruit"]] += 1
+        fruit_counts[
+            sample["fruit"]
+        ] += 1
 
     print()
     print("[과일별 실패 개수]")
@@ -757,12 +948,15 @@ def main():
     # --------------------------------------------------------
 
     print()
-    print("[1/4] 데이터셋 불러오는 중...")
+    print(
+        "[1/4] 데이터셋 불러오는 중..."
+    )
 
     dataset = load_dataset()
 
     print(
-        f"전체 데이터: {len(dataset)}장"
+        f"전체 데이터: "
+        f"{len(dataset)}장"
     )
 
     # --------------------------------------------------------
@@ -770,7 +964,9 @@ def main():
     # --------------------------------------------------------
 
     print()
-    print("[2/4] 특징 추출 중...")
+    print(
+        "[2/4] 특징 추출 중..."
+    )
 
     feature_rows, failed_samples = (
         build_feature_dataset(dataset)
@@ -781,16 +977,22 @@ def main():
     # --------------------------------------------------------
 
     print()
-    print("[3/4] 성공한 데이터 저장 중...")
+    print(
+        "[3/4] 성공한 데이터 저장 중..."
+    )
 
-    save_features(feature_rows)
+    save_features(
+        feature_rows
+    )
 
     # --------------------------------------------------------
     # 4. 실패 데이터 저장
     # --------------------------------------------------------
 
     print()
-    print("[4/4] 실패 데이터 저장 중...")
+    print(
+        "[4/4] 실패 데이터 저장 중..."
+    )
 
     save_failed_samples(
         failed_samples
@@ -809,36 +1011,68 @@ def main():
     # --------------------------------------------------------
 
     total = len(dataset)
-    success = len(feature_rows)
-    failure = len(failed_samples)
+
+    success = len(
+        feature_rows
+    )
+
+    failure = len(
+        failed_samples
+    )
 
     print()
     print("=" * 70)
     print("모든 작업이 완료되었습니다.")
     print("=" * 70)
 
-    print(f"전체 이미지 : {total}")
-    print(f"성공        : {success}")
-    print(f"실패        : {failure}")
+    print(
+        f"전체 이미지 : {total}"
+    )
+
+    print(
+        f"성공        : {success}"
+    )
+
+    print(
+        f"실패        : {failure}"
+    )
 
     if total > 0:
 
         success_rate = (
-            success / total * 100
+            success
+            / total
+            * 100
         )
 
         print(
-            f"성공률      : {success_rate:.2f}%"
+            f"성공률      : "
+            f"{success_rate:.2f}%"
         )
 
     print()
+
     print("성공 데이터:")
-    print(FEATURE_CSV)
+
+    print(
+        FEATURE_CSV
+    )
 
     print()
 
     print("실패 이미지 목록:")
-    print(FAILED_CSV)
+
+    print(
+        FAILED_CSV
+    )
+
+    print()
+
+    print("실패 이미지 저장 폴더:")
+
+    print(
+        PREPROCESSING_FAILED_DIR
+    )
 
     print()
 
