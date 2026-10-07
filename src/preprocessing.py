@@ -506,6 +506,66 @@ def pad_to_square(image, mask, size):
 
     return padded_image, padded_mask
 
+def load_manual_mask(image_path, original_shape, target_shape):
+    """
+    수동 마스크가 있으면 읽어 전처리 영상 크기에 맞춥니다.
+    없으면 None을 반환해 자동 검출을 사용합니다.
+    """
+    try:
+        relative = Path(image_path).resolve().relative_to(
+            (PROJECT_ROOT / "data" / "raw").resolve()
+        )
+    except ValueError:
+        return None
+
+    mask_path = (
+        PROJECT_ROOT
+        / "outputs"
+        / "manual_masks"
+        / relative.parent
+        / (relative.name + ".png")
+    )
+
+    if not mask_path.is_file():
+        return None
+
+    data = np.frombuffer(
+        mask_path.read_bytes(),
+        dtype=np.uint8,
+    )
+    mask = cv2.imdecode(data, cv2.IMREAD_GRAYSCALE)
+
+    if mask is None:
+        raise ValueError(
+            f"수동 마스크를 읽을 수 없습니다: {mask_path}"
+        )
+
+    if mask.shape != tuple(original_shape[:2]):
+        raise ValueError(
+            f"수동 마스크와 원본의 크기가 다릅니다: {mask_path}"
+        )
+
+    # 마스크는 반드시 0 또는 255만 갖도록 합니다.
+    mask = (mask >= 128).astype(np.uint8) * 255
+
+    target_height, target_width = target_shape[:2]
+
+    # 일반 이미지 보간 대신 최근접 보간을 사용해 이진값을 유지합니다.
+    mask = cv2.resize(
+        mask,
+        (target_width, target_height),
+        interpolation=cv2.INTER_NEAREST,
+    )
+
+    area_ratio = np.count_nonzero(mask) / mask.size
+
+    if not 0.005 <= area_ratio <= 0.85:
+        raise ValueError(
+            "수동 마스크 영역 비율을 확인하세요: "
+            f"{area_ratio:.4%}"
+        )
+
+    return mask
 
 def preprocess(
     image_path,
@@ -548,14 +608,32 @@ def preprocess(
 
         debug["original"] = resized_original
         debug["processed"] = resized_cleaned
+        debug["stage"] = "load_manual_mask"
 
-        mask = create_fruit_mask(
-            resized_cleaned,
-            k=k,
-            min_saturation=min_saturation,
-            seed=seed,
-            debug=debug,
+        mask = load_manual_mask(
+            image_path,
+            original_shape=original.shape,
+            target_shape=resized_cleaned.shape,
         )
+
+        if mask is None:
+            # 수동 마스크가 없는 사진은 기존 자동 검출을 사용합니다.
+            mask = create_fruit_mask(
+                resized_cleaned,
+                k=k,
+                min_saturation=min_saturation,
+                seed=seed,
+                debug=debug,
+            )
+        else:
+            debug["mask"] = mask.copy()
+            debug["area_ratio"] = float(
+                np.count_nonzero(mask) / mask.size
+            )
+            print(f"수동 마스크 사용: {Path(image_path).name}")
+
+        
+        
 
         debug["stage"] = "padding_and_hsv"
 
