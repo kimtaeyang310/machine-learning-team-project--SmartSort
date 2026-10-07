@@ -1,86 +1,31 @@
-"""
-SmartSort - Dataset 관리
+"""SmartSort 데이터셋 관리.
 
-역할
-------------------------------------------------------------
-1. data/raw 이미지 검색
-2. 파일명에서 과일 / 고유번호 / 날짜 자동 추출
-3. group_id 자동 생성
-4. 숙도(ripeness) 수동 라벨 관리
-5. Train / Test(split) 수동 관리
-6. 바나나 공개 데이터 통합
-7. 동일 group_id의 Train/Test 누수 검사
-8. 데이터 분포 출력
+귤·토마토: fruit_labels.csv의 ripeness / split을 직접 입력합니다.
+바나나: 폴더에서 숙도를 읽고, 숙도별 원본 그룹을 무작위 분할합니다.
 
-
-fruit_labels.csv 형식
-------------------------------------------------------------
-
-fruit,fruit_id,date,ripeness,group_id,split
-
-
-예:
-
-tomato,T01,2026-10-02,ripe,T01_20261002,train
-tomato,T02,2026-10-02,unripe,T02_20261002,train
-mandarin,M01,2026-10-04,ripe,M01_20261004,train
-
-
-앞으로 새로 촬영한 데이터:
-
-tomato,T10,2026-10-08,unripe,T10_20261008,test
-
-
-자동 입력:
-    fruit
-    fruit_id
-    date
-    group_id
-
-사람이 입력:
-    ripeness
-    split
+실행:
+    python src/dataset.py
+또는:
+    python -m src.dataset
 """
 
 import csv
+import random
 import re
-
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 
 
-# ============================================================
-# 1. 프로젝트 경로
-# ============================================================
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+RAW_DIR = PROJECT_ROOT / "data" / "raw"
+LABELS_PATH = PROJECT_ROOT / "data" / "metadata" / "fruit_labels.csv"
 
-RAW_DIR = (
-    PROJECT_ROOT
-    / "data"
-    / "raw"
-)
+# 바나나 원본 그룹의 약 20%를 Test로 배정합니다.
+BANANA_TEST_SIZE = 0.2
+BANANA_SPLIT_SEED = 42
 
-LABELS_PATH = (
-    PROJECT_ROOT
-    / "data"
-    / "metadata"
-    / "fruit_labels.csv"
-)
-
-
-# ============================================================
-# 2. 기본 설정
-# ============================================================
-
-IMAGE_EXTENSIONS = {
-    ".jpg",
-    ".jpeg",
-    ".png",
-    ".bmp",
-}
-
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp"}
 
 RIPENESS_LABELS = {
     "unripe": 0,
@@ -88,16 +33,7 @@ RIPENESS_LABELS = {
     "overripe": 2,
 }
 
-
-VALID_SPLITS = {
-    "train",
-    "test",
-}
-
-
-# ============================================================
-# 3. CSV 컬럼
-# ============================================================
+VALID_SPLITS = {"train", "test"}
 
 LABEL_FIELDS = [
     "fruit",
@@ -108,8 +44,6 @@ LABEL_FIELDS = [
     "split",
 ]
 
-
-# 기존 CSV와 호환하기 위한 최소 컬럼
 BASE_LABEL_FIELDS = [
     "fruit",
     "fruit_id",
@@ -117,42 +51,11 @@ BASE_LABEL_FIELDS = [
     "ripeness",
 ]
 
-
-# ============================================================
-# 4. 바나나 폴더
-# ============================================================
-
 BANANA_FOLDERS = {
     "unripe_banana": "unripe",
     "ripe_banana": "ripe",
     "overripe_banana": "overripe",
 }
-
-
-# ============================================================
-# 5. 직접 촬영 이미지 파일명 규칙
-# ============================================================
-#
-# 예:
-#
-# 20261004_tomato_T01_indoor_01.jpg
-#
-# date
-#     20261004
-#
-# fruit
-#     tomato
-#
-# fruit_id
-#     T01
-#
-# light
-#     indoor
-#
-# shot
-#     01
-#
-# ============================================================
 
 FILENAME_PATTERN = re.compile(
     r"^(?P<date>\d{8})_"
@@ -164,123 +67,35 @@ FILENAME_PATTERN = re.compile(
 )
 
 
-# ============================================================
-# 6. 직접 촬영 데이터 group_id 자동 생성
-# ============================================================
-
-def make_group_id(
-    fruit_id,
-    date,
-):
-    """
-    파일명에서 얻은 fruit_id와 date를 이용해
-    group_id를 자동으로 만듭니다.
-
-    예:
-
-    fruit_id = T10
-    date = 2026-10-08
-
-        ↓
-
-    T10_20261008
+def make_group_id(fruit_id, date):
+    """직접 촬영한 과일의 개체+날짜 그룹을 만듭니다."""
+    return f"{fruit_id.upper()}_{date.replace('-', '')}"
 
 
-    강사님 과제 조건:
-
-    "촬영 날짜 단위 그룹 분할"
-
-    을 반영하기 위해 날짜를 group_id에 포함합니다.
-    """
-
-    date_text = date.replace(
-        "-",
-        "",
-    )
-
-    return (
-        f"{fruit_id.upper()}_"
-        f"{date_text}"
-    )
-
-
-# ============================================================
-# 7. 바나나 숙도 찾기
-# ============================================================
-
-def find_banana_label(
-    relative_path,
-):
-    """
-    바나나 이미지의 상위 폴더에서
-    숙도를 찾습니다.
-
-    예:
-
-    Ripe_banana
-        → ripe
-
-    Unripe_banana
-        → unripe
-    """
-
+def find_banana_label(relative_path):
+    """바나나 상위 폴더에서 숙도를 찾습니다."""
     labels = [
-
-        BANANA_FOLDERS[
-            part.lower()
-        ]
-
-        for part
-        in relative_path.parts[:-1]
-
-        if part.lower()
-        in BANANA_FOLDERS
+        BANANA_FOLDERS[part.lower()]
+        for part in relative_path.parts[:-1]
+        if part.lower() in BANANA_FOLDERS
     ]
 
-
     if len(labels) > 1:
-
         raise ValueError(
-            "숙도 폴더가 중복돼 있습니다: "
-            f"{relative_path}"
+            f"숙도 폴더가 중복돼 있습니다: {relative_path}"
         )
 
-
-    return (
-        labels[0]
-        if labels
-        else None
-    )
+    return labels[0] if labels else None
 
 
-# ============================================================
-# 8. 바나나 group_id 자동 생성
-# ============================================================
-
-def get_banana_group_id(
-    image_path,
-):
-    """
-    같은 원본 이미지에서 생성된 증강 이미지를
-    같은 group_id로 묶습니다.
-
-    예:
-
-    Ripe_1_jpg.rf.abc123.jpg
-    Ripe_1_jpg.rf.def456.jpg
-
-        ↓
-
-    mendeley_banana_ripe_1
-    """
-
+def get_banana_group_id(image_path):
+    """같은 원본에서 생성된 .rf. 증강 이미지들을 하나로 묶습니다."""
     original_stem = re.split(
         r"\.rf\.",
         image_path.stem,
         maxsplit=1,
         flags=re.IGNORECASE,
     )[0]
-
 
     original_stem = re.sub(
         r"(?:_|\.)(?:jpg|jpeg|png|bmp)$",
@@ -289,1583 +104,460 @@ def get_banana_group_id(
         flags=re.IGNORECASE,
     )
 
-
     if not original_stem:
-
         raise ValueError(
-            "바나나 원본 이미지 이름을 "
-            f"확인하세요: {image_path.name}"
+            f"바나나 원본 이름을 확인하세요: {image_path.name}"
         )
 
-
-    return (
-        "mendeley_banana_"
-        f"{original_stem.lower()}"
-    )
+    return f"mendeley_banana_{original_stem.lower()}"
 
 
-# ============================================================
-# 9. 이미지 검색
-# ============================================================
-
-def scan_images(
-    raw_dir=RAW_DIR,
-):
-    """
-    data/raw 안의 모든 이미지를 검색합니다.
-
-    직접 촬영:
-        tomato
-        mandarin
-
-    공개 데이터:
-        banana
-    """
-
-    raw_dir = Path(
-        raw_dir
-    ).resolve()
-
+def scan_images(raw_dir=RAW_DIR):
+    """이미지를 검색합니다. 바나나 split은 이후에 배정합니다."""
+    raw_dir = Path(raw_dir).resolve()
 
     if not raw_dir.is_dir():
-
         raise FileNotFoundError(
-            "원본 이미지 폴더가 없습니다: "
-            f"{raw_dir}"
+            f"원본 이미지 폴더가 없습니다: {raw_dir}"
         )
 
+    collected, bananas = [], []
 
-    collected = []
-
-    bananas = []
-
-
-    for path in sorted(
-        raw_dir.rglob("*")
-    ):
-
-        # 파일이 아니면 제외
-        if not path.is_file():
-            continue
-
-
-        # 이미지 확장자가 아니면 제외
+    for path in sorted(raw_dir.rglob("*")):
         if (
-            path.suffix.lower()
-            not in IMAGE_EXTENSIONS
+            not path.is_file()
+            or path.suffix.lower() not in IMAGE_EXTENSIONS
         ):
             continue
 
+        relative_path = path.relative_to(raw_dir)
+        banana_label = find_banana_label(relative_path)
 
-        relative_path = (
-            path.relative_to(
-                raw_dir
-            )
-        )
-
-
-        banana_label = (
-            find_banana_label(
-                relative_path
-            )
-        )
-
-
-        # ====================================================
-        # 바나나
-        # ====================================================
-
+        # 바나나는 폴더 이름으로 숙도를 결정합니다.
         if banana_label is not None:
-
-            group_id = (
-                get_banana_group_id(
-                    path
-                )
-            )
-
-
             bananas.append({
-
-                "image_path":
-                    relative_path.as_posix(),
-
-                "path":
-                    path,
-
-                "fruit":
-                    "banana",
-
-                "fruit_id":
-                    "",
-
-                "date":
-                    "",
-
-                "light":
-                    "",
-
-                "shot":
-                    "",
-
-                "ripeness":
-                    banana_label,
-
-                "ripeness_label":
-                    RIPENESS_LABELS[
-                        banana_label
-                    ],
-
-                "original_label":
-                    (
-                        "semi-ripe"
-                        if banana_label
-                        == "unripe"
-                        else banana_label
-                    ),
-
-                "source":
-                    "mendeley",
-
-                "group_id":
-                    group_id,
-
-                # 현재 바나나는 학습용으로 사용
-                "split":
-                    "train",
+                "image_path": relative_path.as_posix(),
+                "path": path,
+                "fruit": "banana",
+                "fruit_id": "",
+                "date": "",
+                "light": "",
+                "shot": "",
+                "ripeness": banana_label,
+                "ripeness_label": RIPENESS_LABELS[banana_label],
+                "original_label": (
+                    "semi-ripe"
+                    if banana_label == "unripe"
+                    else banana_label
+                ),
+                "source": "mendeley",
+                "group_id": get_banana_group_id(path),
+                "split": "",
             })
-
-
             continue
 
-
-        # ====================================================
-        # 귤 / 토마토
-        # ====================================================
-
-        match = (
-            FILENAME_PATTERN.fullmatch(
-                path.stem
-            )
-        )
-
+        # 귤·토마토는 파일명에서 정보를 추출합니다.
+        match = FILENAME_PATTERN.fullmatch(path.stem)
 
         if match is None:
-
             raise ValueError(
-
-                "대응하지 않는 이미지입니다:\n"
-
-                f"{relative_path}\n\n"
-
-                "직접 촬영 이미지는 "
-                "다음 형식을 사용해주세요.\n\n"
-
-                "YYYYMMDD_fruit_ID_light_number.jpg\n\n"
-
-                "예:\n"
-
+                f"대응하지 않는 이미지입니다: {relative_path}\n"
+                "직접 촬영 파일명 예: "
                 "20261008_tomato_T10_indoor_01.jpg"
             )
 
+        info = match.groupdict()
 
-        info = (
-            match.groupdict()
-        )
+        info["date"] = datetime.strptime(
+            info["date"], "%Y%m%d"
+        ).strftime("%Y-%m-%d")
 
-
-        # ----------------------------------------------------
-        # 날짜 변환
-        #
-        # 20261008
-        #   ↓
-        # 2026-10-08
-        # ----------------------------------------------------
-
-        info["date"] = (
-            datetime.strptime(
-                info["date"],
-                "%Y%m%d",
-            ).strftime(
-                "%Y-%m-%d"
-            )
-        )
-
-
-        # ----------------------------------------------------
-        # fruit 정리
-        # ----------------------------------------------------
-
-        info["fruit"] = (
-            info["fruit"].lower()
-        )
-
-
-        # ----------------------------------------------------
-        # fruit_id 정리
-        # ----------------------------------------------------
-
-        info["fruit_id"] = (
-            info["fruit_id"].upper()
-        )
-
-
-        # ----------------------------------------------------
-        # group_id 자동 생성
-        # ----------------------------------------------------
-
-        group_id = (
-            make_group_id(
-                info["fruit_id"],
-                info["date"],
-            )
-        )
-
-
-        # ----------------------------------------------------
-        # 데이터 추가
-        # ----------------------------------------------------
+        info["fruit"] = info["fruit"].lower()
+        info["fruit_id"] = info["fruit_id"].upper()
 
         collected.append({
-
             **info,
-
-            "image_path":
-                relative_path.as_posix(),
-
-            "path":
-                path,
-
-            "source":
-                "self_collected",
-
-            # 자동 생성
-            "group_id":
-                group_id,
+            "image_path": relative_path.as_posix(),
+            "path": path,
+            "source": "self_collected",
+            "group_id": make_group_id(
+                info["fruit_id"], info["date"]
+            ),
         })
 
+    if not collected and not bananas:
+        raise ValueError("처리할 수 있는 이미지가 없습니다.")
 
-    if (
-        not collected
-        and not bananas
-    ):
-
-        raise ValueError(
-            "처리할 수 있는 이미지가 없습니다."
-        )
+    return collected, bananas
 
 
-    return (
-        collected,
-        bananas,
-    )
-
-
-# ============================================================
-# 10. fruit_labels.csv 생성 / 업데이트
-# ============================================================
-
-def update_label_template(
-    samples,
-    csv_path=LABELS_PATH,
-):
-    """
-    fruit_labels.csv를 생성하거나 업데이트합니다.
-
-
-    자동 입력되는 값:
-
-        fruit
-        fruit_id
-        date
-        group_id
-
-
-    사람이 작성하는 값:
-
-        ripeness
-        split
-
-
-    예:
-
-    프로그램 자동 생성:
-
-    tomato,T10,2026-10-08,,T10_20261008,
-
-
-    사람이 작성:
-
-    tomato,T10,2026-10-08,unripe,T10_20261008,test
-    """
-
-    csv_path = Path(
-        csv_path
-    )
-
-
+def update_label_template(samples, csv_path=LABELS_PATH):
+    """귤·토마토의 수동 라벨과 split을 보존하며 새 항목을 추가합니다."""
+    csv_path = Path(csv_path)
     rows = {}
-
-
-    # 기존 CSV를 새 형식으로 다시 저장해야 하는지
     rewrite_csv = False
 
-
-    # ========================================================
-    # 기존 CSV 읽기
-    # ========================================================
-
     if csv_path.exists():
-
         with csv_path.open(
-            "r",
-            encoding="utf-8-sig",
-            newline="",
+            "r", encoding="utf-8-sig", newline=""
         ) as file:
+            reader = csv.DictReader(file)
+            fields = set(reader.fieldnames or [])
 
-            reader = csv.DictReader(
-                file
-            )
-
-
-            fieldnames = (
-                reader.fieldnames
-                or []
-            )
-
-
-            # ------------------------------------------------
-            # 최소 필수 열 확인
-            # ------------------------------------------------
-
-            missing = (
-                set(BASE_LABEL_FIELDS)
-                - set(fieldnames)
-            )
-
+            missing = set(BASE_LABEL_FIELDS) - fields
 
             if missing:
-
                 raise ValueError(
-                    "CSV에 필요한 열이 없습니다: "
-                    f"{sorted(missing)}"
+                    f"CSV에 필요한 열이 없습니다: {sorted(missing)}"
                 )
 
+            rewrite_csv = not set(LABEL_FIELDS).issubset(fields)
 
-            # ------------------------------------------------
-            # 새로운 컬럼이 기존 CSV에 없다면
-            # 새 형식으로 다시 저장
-            # ------------------------------------------------
-
-            if (
-                "group_id"
-                not in fieldnames
-                or
-                "split"
-                not in fieldnames
-            ):
-
-                rewrite_csv = True
-
-
-            # ------------------------------------------------
-            # 기존 행 읽기
-            # ------------------------------------------------
-
-            for (
-                line_number,
-                row,
-            ) in enumerate(
-                reader,
-                start=2,
-            ):
-
+            for line_number, row in enumerate(reader, start=2):
                 cleaned = {
-
-                    "fruit":
-                        (
-                            row.get("fruit")
-                            or ""
-                        ).strip(),
-
-                    "fruit_id":
-                        (
-                            row.get("fruit_id")
-                            or ""
-                        ).strip(),
-
-                    "date":
-                        (
-                            row.get("date")
-                            or ""
-                        ).strip(),
-
-                    "ripeness":
-                        (
-                            row.get("ripeness")
-                            or ""
-                        ).strip(),
-
-                    "group_id":
-                        (
-                            row.get("group_id")
-                            or ""
-                        ).strip(),
-
-                    "split":
-                        (
-                            row.get("split")
-                            or ""
-                        ).strip(),
-
+                    key: (row.get(key) or "").strip()
+                    for key in LABEL_FIELDS
                 }
 
-
-                # ------------------------------------------------
-                # 기본 정보 확인
-                # ------------------------------------------------
-
-                if not all([
-
-                    cleaned["fruit"],
-
-                    cleaned["fruit_id"],
-
-                    cleaned["date"],
-
-                ]):
-
-                    raise ValueError(
-                        f"CSV {line_number}행의 "
-                        "fruit / fruit_id / date를 "
-                        "확인하세요."
-                    )
-
-
-                cleaned["fruit"] = (
-                    cleaned[
-                        "fruit"
-                    ].lower()
-                )
-
-
-                cleaned["fruit_id"] = (
-                    cleaned[
-                        "fruit_id"
-                    ].upper()
-                )
-
-
-                cleaned["ripeness"] = (
-                    cleaned[
-                        "ripeness"
-                    ].lower()
-                )
-
-
-                cleaned["split"] = (
-                    cleaned[
-                        "split"
-                    ].lower()
-                )
-
-
-                # ------------------------------------------------
-                # 날짜 확인
-                # ------------------------------------------------
-
-                datetime.strptime(
-                    cleaned["date"],
-                    "%Y-%m-%d",
-                )
-
-
-                # ------------------------------------------------
-                # 과일 확인
-                # ------------------------------------------------
-
-                if (
-                    cleaned["fruit"]
-                    not in {
-                        "mandarin",
-                        "tomato",
-                    }
+                if not all(
+                    cleaned[key]
+                    for key in ("fruit", "fruit_id", "date")
                 ):
-
                     raise ValueError(
-                        f"CSV {line_number}행의 "
-                        "fruit를 확인하세요."
+                        f"CSV {line_number}행의 개체 정보를 확인하세요."
                     )
 
+                cleaned["fruit"] = cleaned["fruit"].lower()
+                cleaned["fruit_id"] = cleaned["fruit_id"].upper()
+                cleaned["ripeness"] = cleaned["ripeness"].lower()
+                cleaned["split"] = cleaned["split"].lower()
 
-                # ------------------------------------------------
-                # 숙도 확인
-                # ------------------------------------------------
+                datetime.strptime(cleaned["date"], "%Y-%m-%d")
+
+                if cleaned["fruit"] not in {"mandarin", "tomato"}:
+                    raise ValueError(
+                        f"CSV {line_number}행의 fruit를 확인하세요."
+                    )
 
                 if (
                     cleaned["ripeness"]
-                    and
-                    cleaned["ripeness"]
-                    not in RIPENESS_LABELS
+                    and cleaned["ripeness"] not in RIPENESS_LABELS
                 ):
-
                     raise ValueError(
-                        f"CSV {line_number}행의 "
-                        "ripeness를 확인하세요."
+                        f"CSV {line_number}행의 ripeness를 확인하세요."
                     )
-
-
-                # ------------------------------------------------
-                # split 확인
-                # ------------------------------------------------
 
                 if (
                     cleaned["split"]
-                    and
-                    cleaned["split"]
-                    not in VALID_SPLITS
+                    and cleaned["split"] not in VALID_SPLITS
                 ):
-
                     raise ValueError(
-                        f"CSV {line_number}행의 "
-                        "split은 train 또는 test만 "
-                        "사용할 수 있습니다."
+                        f"CSV {line_number}행의 split은 "
+                        "train/test만 가능합니다."
                     )
 
-
-                # ------------------------------------------------
-                # group_id 자동 생성
-                # ------------------------------------------------
-
-                expected_group_id = (
-                    make_group_id(
-                        cleaned["fruit_id"],
-                        cleaned["date"],
-                    )
+                expected = make_group_id(
+                    cleaned["fruit_id"], cleaned["date"]
                 )
 
-
-                # 기존 CSV에 group_id가 없거나 비어 있으면
-                # 자동으로 채움
-                if (
-                    not cleaned[
-                        "group_id"
-                    ]
-                ):
-
-                    cleaned[
-                        "group_id"
-                    ] = (
-                        expected_group_id
-                    )
-
+                if cleaned["group_id"] != expected:
+                    cleaned["group_id"] = expected
                     rewrite_csv = True
-
-
-                # 기존 group_id가 자동 생성 값과 다르면
-                # 자동값으로 수정
-                elif (
-                    cleaned["group_id"]
-                    != expected_group_id
-                ):
-
-                    print(
-                        "\n"
-                        f"CSV {line_number}행 "
-                        "group_id 자동 수정:"
-                    )
-
-                    print(
-                        f"  기존: "
-                        f"{cleaned['group_id']}"
-                    )
-
-                    print(
-                        f"  변경: "
-                        f"{expected_group_id}"
-                    )
-
-
-                    cleaned["group_id"] = (
-                        expected_group_id
-                    )
-
-                    rewrite_csv = True
-
-
-                # ------------------------------------------------
-                # CSV 행 식별 key
-                # ------------------------------------------------
 
                 key = (
-
                     cleaned["fruit"],
-
                     cleaned["fruit_id"],
-
                     cleaned["date"],
-
                 )
-
 
                 if key in rows:
-
                     raise ValueError(
-                        "CSV에 중복 항목이 있습니다: "
-                        f"{key}"
+                        f"CSV에 중복 항목이 있습니다: {key}"
                     )
 
-
-                rows[key] = (
-                    cleaned
-                )
-
-
-    # ========================================================
-    # 새로운 이미지 데이터 발견
-    # ========================================================
+                rows[key] = cleaned
 
     added = 0
 
-
     for sample in samples:
-
         key = (
-
             sample["fruit"],
-
             sample["fruit_id"],
-
             sample["date"],
-
         )
-
-
-        # ----------------------------------------------------
-        # 새 행 생성
-        # ----------------------------------------------------
 
         if key not in rows:
-
             rows[key] = {
-
-                # 자동
-                "fruit":
-                    sample["fruit"],
-
-                # 자동
-                "fruit_id":
-                    sample["fruit_id"],
-
-                # 자동
-                "date":
-                    sample["date"],
-
-                # 사람이 입력
-                "ripeness":
-                    "",
-
-                # 자동
-                "group_id":
-                    sample["group_id"],
-
-                # 사람이 입력
-                "split":
-                    "",
+                "fruit": sample["fruit"],
+                "fruit_id": sample["fruit_id"],
+                "date": sample["date"],
+                "ripeness": "",
+                "group_id": sample["group_id"],
+                "split": "",
             }
-
-
             added += 1
 
+        elif rows[key]["group_id"] != sample["group_id"]:
+            rows[key]["group_id"] = sample["group_id"]
+            rewrite_csv = True
 
-        # ----------------------------------------------------
-        # 기존 CSV의 group_id도 항상
-        # 파일명 기준 자동 group_id와 맞춤
-        # ----------------------------------------------------
-
-        else:
-
-            expected_group_id = (
-                sample["group_id"]
-            )
-
-
-            if (
-                rows[key]["group_id"]
-                != expected_group_id
-            ):
-
-                rows[key]["group_id"] = (
-                    expected_group_id
-                )
-
-                rewrite_csv = True
-
-
-    # ========================================================
-    # CSV 저장
-    # ========================================================
-
-    if (
-        added
-        or rewrite_csv
-        or (
-            samples
-            and not csv_path.exists()
-        )
-    ):
-
-        csv_path.parent.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-
-
-        temporary_path = (
-            csv_path.with_suffix(
-                ".csv.tmp"
-            )
-        )
-
+    if added or rewrite_csv or (samples and not csv_path.exists()):
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary_path = csv_path.with_suffix(".csv.tmp")
 
         with temporary_path.open(
-            "w",
-            encoding="utf-8-sig",
-            newline="",
+            "w", encoding="utf-8-sig", newline=""
         ) as file:
-
             writer = csv.DictWriter(
-                file,
-                fieldnames=LABEL_FIELDS,
+                file, fieldnames=LABEL_FIELDS
             )
-
-
             writer.writeheader()
+            writer.writerows(rows[key] for key in sorted(rows))
 
+        temporary_path.replace(csv_path)
 
-            writer.writerows(
-
-                rows[key]
-
-                for key
-                in sorted(rows)
-
-            )
-
-
-        temporary_path.replace(
-            csv_path
-        )
-
-
-    print(
-        "\n"
-        f"신규 라벨 항목: "
-        f"{added}개"
-    )
-
+    print(f"\n신규 라벨 항목: {added}개")
 
     if added:
-
         print(
-            "\n새 데이터가 발견되었습니다."
+            "fruit_labels.csv의 새 항목에 "
+            "ripeness와 split을 입력하세요."
         )
-
-        print(
-            "fruit / fruit_id / date / group_id는 "
-            "자동으로 입력했습니다."
-        )
-
-        print(
-            "ripeness와 split만 "
-            "확인해서 입력해주세요."
-        )
-
 
     return rows
 
 
-# ============================================================
-# 11. 데이터셋 불러오기
-# ============================================================
+def assign_banana_splits(
+    bananas,
+    test_size=BANANA_TEST_SIZE,
+    seed=BANANA_SPLIT_SEED,
+):
+    """숙도별로 원본 그룹을 섞어 Train/Test를 배정합니다."""
+    if not 0 < test_size < 1:
+        raise ValueError(
+            "banana_test_size는 0과 1 사이여야 합니다."
+        )
+
+    # 하나의 원본 그룹에 여러 숙도가 연결되었는지 검사합니다.
+    group_labels = defaultdict(set)
+
+    for sample in bananas:
+        group_labels[sample["group_id"]].add(sample["ripeness"])
+
+    by_label = defaultdict(list)
+
+    for group_id, labels in group_labels.items():
+        if len(labels) != 1:
+            raise ValueError(
+                f"바나나 원본 그룹의 숙도가 충돌합니다: {group_id}"
+            )
+
+        label = next(iter(labels))
+
+        if label not in RIPENESS_LABELS:
+            raise ValueError(f"알 수 없는 바나나 숙도: {label}")
+
+        by_label[label].append(group_id)
+
+    assignments = {}
+
+    # unripe / ripe / overripe 각각에서 그룹을 분할합니다.
+    for label in sorted(by_label):
+        groups = sorted(by_label[label])
+
+        if len(groups) < 2:
+            raise ValueError(
+                f"바나나 {label}: Train/Test 분할에는 "
+                "서로 다른 원본이 2개 이상 필요합니다. "
+                "증강 이미지 수가 아닌 원본 수입니다."
+            )
+
+        # 입력 순서가 달라도 같은 데이터와 seed면 같은 분할입니다.
+        rng = random.Random(f"{seed}:{label}")
+        rng.shuffle(groups)
+
+        # 각 숙도의 Train과 Test에 최소 한 그룹씩 남깁니다.
+        test_count = min(
+            len(groups) - 1,
+            max(1, round(len(groups) * test_size)),
+        )
+
+        test_groups = set(groups[:test_count])
+
+        for group_id in groups:
+            assignments[group_id] = (
+                "test" if group_id in test_groups else "train"
+            )
+
+    # 같은 원본의 증강 이미지들은 모두 같은 split을 받습니다.
+    for sample in bananas:
+        sample["split"] = assignments[sample["group_id"]]
+
+    return bananas
+
 
 def load_dataset(
     raw_dir=RAW_DIR,
     csv_path=LABELS_PATH,
+    banana_test_size=BANANA_TEST_SIZE,
+    banana_seed=BANANA_SPLIT_SEED,
 ):
-    """
-    귤·토마토와 바나나를
-    하나의 데이터 목록으로 합칩니다.
-    """
-
-    collected, bananas = (
-        scan_images(
-            raw_dir
-        )
-    )
-
-
-    labels = (
-        update_label_template(
-            collected,
-            csv_path,
-        )
-    )
-
-
-    # ========================================================
-    # 사람이 입력해야 하는 값 확인
-    #
-    # group_id는 자동이므로 검사 대상에서 제외
-    # ========================================================
+    """수동 분할한 귤·토마토와 자동 분할한 바나나를 합칩니다."""
+    collected, bananas = scan_images(raw_dir)
+    labels = update_label_template(collected, csv_path)
 
     pending = {}
 
-
     for sample in collected:
-
         key = (
-
             sample["fruit"],
-
             sample["fruit_id"],
-
             sample["date"],
-
         )
 
-
-        label = (
-            labels[key]
-        )
-
-
-        missing_fields = []
-
-
-        # 숙도
-        if not label[
-            "ripeness"
-        ]:
-
-            missing_fields.append(
-                "ripeness"
-            )
-
-
-        # Train / Test
-        if not label[
-            "split"
-        ]:
-
-            missing_fields.append(
-                "split"
-            )
-
-
-        if missing_fields:
-
-            pending[key] = (
-                missing_fields
-            )
-
-
-    # ========================================================
-    # 미입력값이 있다면 사용자에게 안내
-    # ========================================================
-
-    if pending:
-
-        print(
-            "\n"
-            + "=" * 60
-        )
-
-        print(
-            "라벨 입력이 필요합니다."
-        )
-
-        print(
-            "=" * 60
-        )
-
-
-        for (
-            key,
-            missing_fields,
-        ) in list(
-            pending.items()
-        )[:20]:
-
-            fruit, fruit_id, date = key
-
-
-            group_id = (
-                make_group_id(
-                    fruit_id,
-                    date,
-                )
-            )
-
-
-            print(
-                f"\n"
-                f"{fruit} / "
-                f"{fruit_id} / "
-                f"{date}"
-            )
-
-
-            print(
-                "  group_id:"
-                f" {group_id} "
-                "(자동)"
-            )
-
-
-            print(
-                "  입력 필요:"
-                f" {', '.join(missing_fields)}"
-            )
-
-
-        raise ValueError(
-
-            "\nfruit_labels.csv의 "
-            "ripeness와 split을 "
-            "작성한 뒤 다시 실행하세요."
-
-        )
-
-
-    # ========================================================
-    # CSV 라벨을 이미지 데이터에 연결
-    # ========================================================
-
-    for sample in collected:
-
-        key = (
-
-            sample["fruit"],
-
-            sample["fruit_id"],
-
-            sample["date"],
-
-        )
-
-
-        label = (
-            labels[key]
-        )
-
-
-        sample["ripeness"] = (
-            label[
-                "ripeness"
-            ]
-        )
-
-
-        sample["ripeness_label"] = (
-            RIPENESS_LABELS[
-                label["ripeness"]
-            ]
-        )
-
-
-        sample["original_label"] = (
-            label[
-                "ripeness"
-            ]
-        )
-
-
-        # group_id는 파일명 기준 자동 생성
-        sample["group_id"] = (
-            make_group_id(
-                sample["fruit_id"],
-                sample["date"],
-            )
-        )
-
-
-        sample["split"] = (
-            label[
-                "split"
-            ]
-        )
-
-
-    dataset = (
-        collected
-        + bananas
-    )
-
-
-    # ========================================================
-    # group 검증
-    # ========================================================
-
-    validate_groups(
-        dataset
-    )
-
-
-    return sorted(
-
-        dataset,
-
-        key=lambda sample:
-            sample[
-                "image_path"
-            ],
-
-    )
-
-
-# ============================================================
-# 12. group 검증
-# ============================================================
-
-def validate_groups(
-    samples,
-):
-    """
-    검사 내용
-
-    1. 동일 group_id가 Train/Test에 동시에 존재하는지
-    2. 동일 group_id에 서로 다른 숙도가 있는지
-
-    데이터 누수를 방지합니다.
-    """
-
-    group_splits = (
-        defaultdict(set)
-    )
-
-
-    group_ripeness = (
-        defaultdict(set)
-    )
-
-
-    for sample in samples:
-
-        group_id = (
-            sample[
-                "group_id"
-            ]
-        )
-
-
-        group_splits[
-            group_id
-        ].add(
-            sample[
-                "split"
-            ]
-        )
-
-
-        group_ripeness[
-            group_id
-        ].add(
-            sample[
-                "ripeness"
-            ]
-        )
-
-
-    # ========================================================
-    # Train/Test 누수 검사
-    # ========================================================
-
-    split_conflicts = [
-
-        group_id
-
-        for group_id, values
-        in group_splits.items()
-
-        if (
-            "train" in values
-            and
-            "test" in values
-        )
-
-    ]
-
-
-    if split_conflicts:
-
-        raise ValueError(
-
-            "같은 group_id가 "
-            "Train과 Test에 동시에 있습니다:\n"
-
-            + "\n".join(
-                sorted(
-                    split_conflicts
-                )[:20]
-            )
-
-        )
-
-
-    # ========================================================
-    # 숙도 충돌 검사
-    # ========================================================
-
-    ripeness_conflicts = [
-
-        group_id
-
-        for group_id, values
-        in group_ripeness.items()
-
-        if len(values) > 1
-
-    ]
-
-
-    if ripeness_conflicts:
-
-        raise ValueError(
-
-            "같은 group_id에 "
-            "서로 다른 숙도가 연결되어 있습니다:\n"
-
-            + "\n".join(
-                sorted(
-                    ripeness_conflicts
-                )[:20]
-            )
-
-        )
-
-
-# ============================================================
-# 13. Train / Test 분리
-# ============================================================
-
-def split_dataset(
-    samples,
-):
-    """
-    CSV의 split 값을 기준으로
-    Train / Test를 나눕니다.
-
-    랜덤 분할은 하지 않습니다.
-
-    train
-        → 현재까지 촬영한 기존 데이터
-
-    test
-        → 앞으로 새 날짜에 촬영할
-          새로운 개체 데이터
-    """
-
-    train = [
-
-        sample
-
-        for sample in samples
-
-        if (
-            sample["split"]
-            == "train"
-        )
-
-    ]
-
-
-    test = [
-
-        sample
-
-        for sample in samples
-
-        if (
-            sample["split"]
-            == "test"
-        )
-
-    ]
-
-
-    # ========================================================
-    # Train 확인
-    # ========================================================
-
-    if not train:
-
-        raise ValueError(
-            "Train 데이터가 없습니다."
-        )
-
-
-    # ========================================================
-    # Test가 아직 없다면 경고만 출력
-    # ========================================================
-
-    if not test:
-
-        print(
-            "\n주의:"
-        )
-
-        print(
-            "현재 Test 데이터가 없습니다."
-        )
-
-        print(
-            "앞으로 새로운 날짜에 촬영한 "
-            "새로운 과일을 test로 지정하세요."
-        )
-
-
-    # ========================================================
-    # Train/Test group_id 최종 확인
-    # ========================================================
-
-    train_groups = {
-
-        sample["group_id"]
-
-        for sample in train
-
-    }
-
-
-    test_groups = {
-
-        sample["group_id"]
-
-        for sample in test
-
-    }
-
-
-    overlap = (
-
-        train_groups
-        & test_groups
-
-    )
-
-
-    if overlap:
-
-        raise RuntimeError(
-
-            "Train/Test 사이에 "
-            "동일한 group_id가 존재합니다:\n"
-
-            + "\n".join(
-                sorted(
-                    overlap
-                )
-            )
-
-        )
-
-
-    return (
-        train,
-        test,
-    )
-
-
-# ============================================================
-# 14. 데이터 요약
-# ============================================================
-
-def print_summary(
-    samples,
-    name="전체",
-):
-    """
-    데이터 현황 출력
-
-    - 사진 수
-    - group 수
-    - 출처
-    - 과일별 숙도 사진 수
-    - 과일별 숙도 group 수
-    """
-
-    print(
-        "\n"
-        + "=" * 60
-    )
-
-
-    print(
-        f"[{name}]"
-    )
-
-
-    print(
-        "=" * 60
-    )
-
-
-    # ========================================================
-    # 사진 수
-    # ========================================================
-
-    print(
-        f"사진: "
-        f"{len(samples)}장"
-    )
-
-
-    # ========================================================
-    # group 수
-    # ========================================================
-
-    groups = {
-
-        sample["group_id"]
-
-        for sample in samples
-
-    }
-
-
-    print(
-        f"그룹: "
-        f"{len(groups)}개"
-    )
-
-
-    # ========================================================
-    # 출처
-    # ========================================================
-
-    source_counts = Counter(
-
-        sample["source"]
-
-        for sample
-        in samples
-
-    )
-
-
-    print(
-        "출처별: "
-        f"{dict(source_counts)}"
-    )
-
-
-    # ========================================================
-    # 과일 종류
-    # ========================================================
-
-    fruits = sorted({
-
-        sample["fruit"]
-
-        for sample
-        in samples
-
-    })
-
-
-    for fruit in fruits:
-
-        fruit_samples = [
-
-            sample
-
-            for sample
-            in samples
-
-            if (
-                sample["fruit"]
-                == fruit
-            )
-
+        label = labels[key]
+
+        missing = [
+            field
+            for field in ("ripeness", "split")
+            if not label[field]
         ]
 
+        if missing:
+            pending[key] = missing
+            continue
 
+        sample.update({
+            "ripeness": label["ripeness"],
+            "ripeness_label": RIPENESS_LABELS[label["ripeness"]],
+            "original_label": label["ripeness"],
+            "split": label["split"],
+        })
+
+    if pending:
+        details = "\n".join(
+            f"{key}: {', '.join(fields)}"
+            for key, fields in list(pending.items())[:20]
+        )
+
+        raise ValueError(
+            f"라벨 미입력 항목:\n{details}\n"
+            f"{csv_path}의 ripeness와 split을 작성하세요."
+        )
+
+    # 바나나만 자동 분할합니다.
+    assign_banana_splits(
+        bananas,
+        test_size=banana_test_size,
+        seed=banana_seed,
+    )
+
+    dataset = collected + bananas
+    validate_groups(dataset)
+
+    return sorted(
+        dataset,
+        key=lambda sample: sample["image_path"],
+    )
+
+
+def validate_groups(samples):
+    """동일 그룹의 split 및 숙도 충돌을 검사합니다."""
+    group_splits = defaultdict(set)
+    group_labels = defaultdict(set)
+
+    for sample in samples:
+        if sample["split"] not in VALID_SPLITS:
+            raise ValueError(
+                f"잘못된 split: {sample['image_path']}"
+            )
+
+        group_splits[sample["group_id"]].add(sample["split"])
+        group_labels[sample["group_id"]].add(sample["ripeness"])
+
+    for group_id in group_splits:
+        if len(group_splits[group_id]) > 1:
+            raise ValueError(
+                f"Train/Test에 같은 그룹이 있습니다: {group_id}"
+            )
+
+        if len(group_labels[group_id]) > 1:
+            raise ValueError(
+                f"같은 그룹에 서로 다른 숙도가 있습니다: {group_id}"
+            )
+
+
+def split_dataset(samples):
+    """이미 배정된 split으로 나눕니다. 이 단계에서 재추첨하지 않습니다."""
+    validate_groups(samples)
+
+    train = [
+        sample for sample in samples
+        if sample["split"] == "train"
+    ]
+
+    test = [
+        sample for sample in samples
+        if sample["split"] == "test"
+    ]
+
+    if not train:
+        raise ValueError("Train 데이터가 없습니다.")
+
+    if not test:
         print(
-            f"\n[{fruit}]"
+            "\n현재 Test 데이터가 없습니다. "
+            "학습만 진행할 수 있습니다."
         )
 
-
-        # ----------------------------------------------------
-        # 사진 기준 숙도
-        # ----------------------------------------------------
-
-        image_counts = Counter(
-
-            sample["ripeness"]
-
-            for sample
-            in fruit_samples
-
-        )
+    return train, test
 
 
-        print(
-            "사진 기준 숙도:"
-        )
+def print_summary(samples, name="전체"):
+    """사진 수, 그룹 수, 출처 및 과일별 숙도 분포를 출력합니다."""
+    print(f"\n{'=' * 60}\n[{name}]\n{'=' * 60}")
+    print(f"사진: {len(samples)}장")
+    print(f"그룹: {len({s['group_id'] for s in samples})}개")
+    print(
+        f"출처별: {dict(Counter(s['source'] for s in samples))}"
+    )
 
+    for fruit in sorted({s["fruit"] for s in samples}):
+        subset = [
+            sample for sample in samples
+            if sample["fruit"] == fruit
+        ]
 
-        for ripeness in (
-            RIPENESS_LABELS
-        ):
+        counts = Counter(s["ripeness"] for s in subset)
+        groups = defaultdict(set)
 
+        for sample in subset:
+            groups[sample["ripeness"]].add(sample["group_id"])
+
+        print(f"\n[{fruit}]")
+
+        for label in RIPENESS_LABELS:
             print(
-
-                f"  "
-                f"{ripeness:<10}: "
-                f"{image_counts.get(ripeness, 0)}장"
-
+                f"  {label:<10}: "
+                f"{counts[label]}장 / {len(groups[label])}그룹"
             )
 
-
-        # ----------------------------------------------------
-        # group 기준 숙도
-        # ----------------------------------------------------
-
-        group_sets = (
-            defaultdict(set)
-        )
-
-
-        for sample in fruit_samples:
-
-            group_sets[
-                sample["ripeness"]
-            ].add(
-                sample[
-                    "group_id"
-                ]
-            )
-
-
-        print(
-            "group 기준 숙도:"
-        )
-
-
-        for ripeness in (
-            RIPENESS_LABELS
-        ):
-
-            print(
-
-                f"  "
-                f"{ripeness:<10}: "
-                f"{len(group_sets[ripeness])}개"
-
-            )
-
-
-# ============================================================
-# 15. 직접 실행
-# ============================================================
 
 if __name__ == "__main__":
-
     try:
+        dataset = load_dataset()
+        train_data, test_data = split_dataset(dataset)
 
-        # ----------------------------------------------------
-        # 데이터 불러오기
-        # ----------------------------------------------------
-
-        dataset = (
-            load_dataset()
-        )
-
-
-        # ----------------------------------------------------
-        # 전체 데이터 현황
-        # ----------------------------------------------------
-
-        print_summary(
-            dataset,
-            "전체",
-        )
-
-
-        # ----------------------------------------------------
-        # Train / Test 분리
-        # ----------------------------------------------------
-
-        train_data, test_data = (
-            split_dataset(
-                dataset
-            )
-        )
-
-
-        # ----------------------------------------------------
-        # Train 현황
-        # ----------------------------------------------------
-
-        print_summary(
-            train_data,
-            "Train",
-        )
-
-
-        # ----------------------------------------------------
-        # Test 현황
-        # ----------------------------------------------------
-
-        if test_data:
-
-            print_summary(
-                test_data,
-                "Test",
-            )
-
-
-        # ----------------------------------------------------
-        # 최종 결과
-        # ----------------------------------------------------
+        print_summary(dataset, "전체")
+        print_summary(train_data, "Train")
+        print_summary(test_data, "Test")
 
         print(
-            "\n"
-            + "=" * 60
+            f"\n분리 완료: "
+            f"Train {len(train_data)}장 / "
+            f"Test {len(test_data)}장"
         )
 
-
-        print(
-            "Train/Test 분리 완료"
-        )
-
-
-        print(
-            "=" * 60
-        )
-
-
-        print(
-            f"Train: "
-            f"{len(train_data)}장"
-        )
-
-
-        print(
-            f"Test : "
-            f"{len(test_data)}장"
-        )
-
-
-    except (
-        ValueError,
-        OSError,
-        RuntimeError,
-    ) as error:
-
-        print(
-            "\n확인할 내용:\n"
-            f"{error}"
-        )
-
+    except (ValueError, OSError, RuntimeError) as error:
+        print(f"\n확인할 내용:\n{error}")
         raise SystemExit(1)

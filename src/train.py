@@ -1,32 +1,28 @@
-#4. train.py : 추출한 특징으로 모델 학습
-
 """SmartSort: 이미지 특징으로 숙도 분류 모델 학습·비교·저장.
 
 실행 방법: 프로젝트 최상위 폴더에서
     python -m src.train
+또는 파일 직접 실행:
+    python src/train.py
 
-feature_extraction.py 연결 규격:
-    extract_features(preprocessed) -> dict[str, float]
-
-예시 반환값:
-    {
-        "h_mean": 30.5,
-        "s_mean": 120.0,
-        "v_mean": 180.0,
-        "green_ratio": 0.2,
-        "yellow_ratio": 0.7,
-        "brown_ratio": 0.1,
-    }
-
-히스토그램처럼 여러 숫자가 나오는 특징은
-h_hist_0, h_hist_1처럼 각각 별도의 항목으로 반환하세요.
+CSV의 수동 split을 유지하며 Train 내부에서만 모델을 비교합니다.
+Test가 없어도 학습할 수 있습니다. 최종 평가는 evaluate.py의 역할입니다.
+완성된 extract_features()가 반환하는 숫자 특징만 학습에 사용합니다.
 """
 
 from pathlib import Path
+import sys
+
+# 직접 실행할 때도 src 패키지를 찾도록 프로젝트 경로를 추가합니다.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+if __name__ == "__main__" and not __package__:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import joblib
 import numpy as np
 import pandas as pd
+
 from sklearn.base import clone
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
@@ -48,12 +44,10 @@ from src.dataset import (
 from src.preprocessing import preprocess
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MODEL_DIR = PROJECT_ROOT / "models"
 OUTPUT_DIR = PROJECT_ROOT / "outputs" / "training"
 
 SEED = 42
-TEST_SIZE = 0.2
 CV_SPLITS = 3
 
 # predict.py에서도 같은 설정으로 전처리해야 합니다.
@@ -78,6 +72,7 @@ def check_labels(y, name):
             for name, label in RIPENESS_LABELS.items()
             if label in missing
         ]
+
         raise ValueError(
             f"{name}: 없는 숙도 클래스 = {names}. "
             "클래스별 개체/원본 수와 그룹 분할을 확인하세요."
@@ -86,22 +81,26 @@ def check_labels(y, name):
 
 def build_feature_table(samples, feature_names=None):
     """이미지마다 특징을 추출하고 동일한 열 순서로 정렬합니다."""
-    # 특징 추출 파일이 완성된 뒤 이 함수와 연결됩니다.
     from src.feature_extraction import extract_features
 
     rows = []
+
     expected_names = (
         list(feature_names) if feature_names is not None else None
     )
 
     for index, sample in enumerate(samples, start=1):
         try:
+            # 1. 이미지 전처리
             processed = preprocess(
                 sample["path"],
                 **PREPROCESS_CONFIG,
             )
+
+            # 2. 완성된 특징 추출 함수 호출
             features = extract_features(processed)
 
+            # 3. 반환 형식 검사
             if not isinstance(features, dict) or not features:
                 raise ValueError(
                     "extract_features()는 비어 있지 않은 "
@@ -113,6 +112,7 @@ def build_feature_table(samples, feature_names=None):
             ):
                 raise ValueError("특징 이름은 문자열이어야 합니다.")
 
+            # 첫 이미지의 특징 이름을 기준으로 순서를 고정합니다.
             if expected_names is None:
                 expected_names = sorted(features)
 
@@ -139,7 +139,7 @@ def build_feature_table(samples, feature_names=None):
             rows.append(values)
 
         except Exception as error:
-            # 실패 이미지를 조용히 제외하면 평가 대상이 바뀌므로 중단합니다.
+            # 실패 이미지를 임의로 제외하지 않고 원인을 표시합니다.
             raise RuntimeError(
                 f"특징 추출 실패: {sample['image_path']}\n{error}"
             ) from error
@@ -167,6 +167,7 @@ def get_models():
                 ),
             ),
         ]),
+
         "svm": Pipeline([
             ("scaler", StandardScaler()),
             (
@@ -179,6 +180,7 @@ def get_models():
                 ),
             ),
         ]),
+
         "random_forest": Pipeline([
             (
                 "classifier",
@@ -195,7 +197,7 @@ def get_models():
 
 
 def make_cv_splits(X, y, groups):
-    """같은 개체/원본을 분리하지 않는 교차검증을 구성합니다."""
+    """같은 group_id를 분리하지 않는 교차검증을 구성합니다."""
     if len(np.unique(groups)) < CV_SPLITS:
         raise ValueError(
             f"교차검증에는 학습 그룹이 {CV_SPLITS}개 이상 필요합니다."
@@ -206,10 +208,11 @@ def make_cv_splits(X, y, groups):
         shuffle=True,
         random_state=SEED,
     )
+
     splits = list(cv.split(X, y, groups))
 
     for fold, (train_idx, valid_idx) in enumerate(splits, start=1):
-        # 그룹 제약 때문에 모든 클래스가 각 구간에 들어간다는
+        # 그룹을 유지하면 모든 클래스가 각 구간에 들어간다는
         # 보장이 없으므로 실제 분할 결과를 검사합니다.
         check_labels(y[train_idx], f"{fold}번 교차검증 학습")
         check_labels(y[valid_idx], f"{fold}번 교차검증 검증")
@@ -225,13 +228,22 @@ def save_split(samples, split_name):
     columns = [
         "image_path",
         "fruit",
+        "fruit_id",
+        "date",
+        "source",
         "group_id",
+        "split",
         "ripeness",
         "ripeness_label",
     ]
 
+    # samples가 비어 있어도 열 이름은 저장합니다.
     pd.DataFrame(
-        [{key: sample[key] for key in columns} for sample in samples]
+        [
+            {key: sample[key] for key in columns}
+            for sample in samples
+        ],
+        columns=columns,
     ).to_csv(
         OUTPUT_DIR / f"{split_name}_samples.csv",
         index=False,
@@ -243,15 +255,16 @@ def train():
     """데이터 준비부터 모델 저장까지 실행합니다."""
     samples = load_dataset()
 
-    # 기존 dataset.py의 과일별 그룹 분할을 그대로 사용합니다.
-    train_samples, test_samples = split_dataset(
-        samples,
-        test_size=TEST_SIZE,
-        seed=SEED,
-    )
+    # CSV에 지정한 split을 그대로 사용합니다.
+    # 이전 버전의 test_size, seed 인자는 전달하지 않습니다.
+    train_samples, test_samples = split_dataset(samples)
 
     print_summary(train_samples, "학습")
-    print_summary(test_samples, "최종 테스트")
+
+    if test_samples:
+        print_summary(test_samples, "최종 테스트")
+    else:
+        print("Test 0장: 학습과 교차검증만 진행합니다.")
 
     train_groups = {s["group_id"] for s in train_samples}
     test_groups = {s["group_id"] for s in test_samples}
@@ -259,27 +272,25 @@ def train():
     if train_groups & test_groups:
         raise ValueError("학습·테스트에 같은 그룹이 포함되었습니다.")
 
+    # 학습 라벨과 교차검증 그룹 준비
     y_train = np.asarray(
         [s["ripeness_label"] for s in train_samples],
         dtype=np.int64,
     )
-    y_test = np.asarray(
-        [s["ripeness_label"] for s in test_samples],
-        dtype=np.int64,
-    )
+
     groups = np.asarray(
         [s["group_id"] for s in train_samples]
     )
 
     check_labels(y_train, "전체 학습 데이터")
-    check_labels(y_test, "최종 테스트 데이터")
 
+    # 학습 이미지의 특징만 추출합니다.
     print("\n학습 데이터 특징 추출")
     X_train = build_feature_table(train_samples)
 
     cv_splits = make_cv_splits(X_train, y_train, groups)
 
-    # 항상 숙도 3개 클래스를 동일하게 반영합니다.
+    # 숙도 3개 클래스를 동일한 비중으로 평가합니다.
     scorer = make_scorer(
         f1_score,
         labels=LABEL_IDS,
@@ -290,6 +301,7 @@ def train():
     models = get_models()
     results = []
 
+    # 동일한 교차검증 분할로 모든 모델을 비교합니다.
     for name, model in models.items():
         print(f"\n{name} 교차검증 중...")
 
@@ -327,8 +339,8 @@ def train():
     best_name = comparison.loc[0, "model"]
     best_model = clone(models[best_name])
 
-    # 최종 테스트는 모델 선택에 사용하지 않습니다.
-    # 선택한 모델만 학습 데이터 전체로 다시 학습합니다.
+    # 교차검증에서 선택한 모델을 Train 전체로 다시 학습합니다.
+    # Test는 모델 선택이나 학습에 사용하지 않습니다.
     best_model.fit(X_train, y_train)
 
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
@@ -362,6 +374,9 @@ def train():
             "label_mapping": dict(RIPENESS_LABELS),
             "preprocess_config": dict(PREPROCESS_CONFIG),
             "seed": SEED,
+            "cv_grouping": "dataset.group_id (직접 촬영: 개체+날짜)",
+            "train_count": len(train_samples),
+            "test_count": len(test_samples),
             "cv_macro_f1": float(
                 comparison.loc[0, "cv_macro_f1_mean"]
             ),
@@ -374,10 +389,21 @@ def train():
     print(f"\n선택한 모델: {best_name}")
     print(f"저장 위치: {model_path}")
     print(f"분할·비교 결과: {OUTPUT_DIR}")
-    print(
-        "\n최종 테스트 성능은 evaluate.py에서 "
-        "test_samples.csv의 이미지로 측정하세요."
-    )
+
+    if test_samples:
+        print(
+            "\n최종 테스트는 evaluate.py에서 "
+            "test_samples.csv로 평가하세요."
+        )
+    else:
+        print(
+            "\n현재 점수는 Train 내부 교차검증 결과이며 "
+            "최종 테스트 성능은 아닙니다."
+        )
+        print(
+            "새 이미지를 test로 지정한 뒤 "
+            "분할 목록을 갱신하고 평가하세요."
+        )
 
     return best_model, comparison
 
