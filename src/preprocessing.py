@@ -158,6 +158,75 @@ def save_failure_debug(
 
     return folder
 
+def save_failed_image(
+    image_path,
+    output_path,
+    fruit,
+    ripeness,
+    error_message,
+):
+    """
+    전처리에 실패한 이미지를
+    과일·숙도·실패 원인과 함께 저장합니다.
+    """
+
+    image = read_image(image_path)
+
+    # 너무 큰 원본 이미지는 보기 편하도록 축소
+    image = resize_image(
+        image,
+        size=DEFAULT_SIZE,
+    )
+
+    # 이미지 아래에 정보 영역 추가
+    info_height = 180
+
+    info = np.full(
+        (info_height, image.shape[1], 3),
+        255,
+        dtype=np.uint8,
+    )
+
+    # OpenCV 기본 폰트는 한글을 지원하지 않으므로
+    # 화면에는 영어/숫자 위주로 표시합니다.
+    lines = [
+        "[PREPROCESSING FAILED]",
+        f"fruit: {fruit}",
+        f"ripeness: {ripeness}",
+        f"reason: {error_message}",
+    ]
+
+    y = 35
+
+    for line in lines:
+        cv2.putText(
+            info,
+            line,
+            (10, y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 0, 0),
+            1,
+            cv2.LINE_AA,
+        )
+
+        y += 35
+
+    result = np.vstack([
+        image,
+        info,
+    ])
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    write_png(
+        output_path,
+        result,
+    )
 
 def read_image(image_path):
     """한글 경로를 지원하며 이미지를 BGR 배열로 읽습니다."""
