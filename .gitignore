@@ -37,3 +37,11 @@ env_test.png
 !data/raw/**/*.JPG
 !data/raw/**/*.JPEG
 !data/raw/**/*.PNG
+
+# outputs 폴더는 접근 가능하게 두고, 내부 결과물은 기본적으로 무시
+!/outputs/
+/outputs/*
+
+# 수동으로 만든 마스크는 Git에 포함
+!/outputs/manual_masks/
+!/outputs/manual_masks/**

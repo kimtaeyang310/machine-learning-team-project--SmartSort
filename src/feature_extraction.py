@@ -18,7 +18,14 @@ SmartSort - 과일 숙도 판별용 특징 추출
 
 python -m src.feature_extraction
 """
+import sys
+from pathlib import Path
 
+# 파일을 직접 실행할 때 프로젝트 루트를 모듈 검색 경로에 추가
+if __package__ in (None, ""):
+    project_root = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(project_root))
+    
 import csv
 from collections import defaultdict
 from pathlib import Path
