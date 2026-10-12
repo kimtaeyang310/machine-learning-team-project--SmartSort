@@ -42,6 +42,7 @@ from src.dataset import (
     split_dataset,
 )
 from src.preprocessing import preprocess
+from src.performance_history import record_training
 
 
 MODEL_DIR = PROJECT_ROOT / "models"
@@ -384,6 +385,10 @@ def train():
         model_path,
     )
 
+    history_run = record_training(comparison, train_samples, OUTPUT_DIR)
+    print(f"\n이번 학습 기록: {history_run}")
+    print(f"누적 학습 CSV: {OUTPUT_DIR / 'training_history.csv'}")
+    print(f"학습 비교 그래프: {OUTPUT_DIR / 'training_history.svg'}")
     print("\n모델 비교 결과")
     print(comparison.to_string(index=False))
     print(f"\n선택한 모델: {best_name}")

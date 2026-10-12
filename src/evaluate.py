@@ -2,7 +2,6 @@
 실행: python src/evaluate.py 또는 python -m src.evaluate
 """
 
-from datetime import datetime
 from pathlib import Path
 import sys
 
@@ -20,6 +19,7 @@ from sklearn.metrics import (
 
 from src.preprocessing import preprocess
 from src.feature_extraction import extract_features
+from src.performance_history import run_time, sample_id, rebuild_evaluation_history
 
 MODEL_PATH = PROJECT_ROOT / "models" / "ripeness_model.joblib"
 TRAIN_CSV = PROJECT_ROOT / "outputs" / "training" / "train_samples.csv"
@@ -74,7 +74,7 @@ def load_inputs(model_path, train_csv, test_csv):
 
 
 def extract_test_features(test, bundle, output_dir):
-    """Test 특징을 추출합니다. 실패가 있으면 기록 후 평가를 중단합니다."""
+    """Test 특징을 추출합니다. 실패 시 화면에 원인을 표시하고 중단합니다."""
     names = bundle["feature_names"]
     if not names or len(names) != len(set(names)):
         raise ValueError("모델의 특징 이름이 비어 있거나 중복되었습니다.")
@@ -103,11 +103,10 @@ def extract_test_features(test, bundle, output_dir):
             print(f"Test 특징 추출: {index}/{len(test)}장")
 
     if failures:
-        path = output_dir / "failed_samples.csv"
-        save_csv(pd.DataFrame(failures), path)
+        for failure in failures:
+            print(f"처리 실패: {failure['image_path']} — {failure['error']}")
         raise RuntimeError(
             f"Test {len(test)}장 중 {len(failures)}장 처리 실패.\n"
-            f"실패 목록: {path}\n"
             "일부 이미지만으로 점수를 계산하지 않았습니다. 원인을 확인하세요."
         )
     return pd.DataFrame(rows, columns=names)
@@ -147,10 +146,9 @@ def evaluate(
     test_csv=TEST_CSV, output_root=OUTPUT_DIR,
 ):
     bundle, test = load_inputs(model_path, train_csv, test_csv)
-    # 매번 별도 폴더에 저장해 이전 성공 결과와 실패 기록을 구분합니다.
-    run_dir = Path(output_root) / datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    run_dir.mkdir(parents=True, exist_ok=False)
-    save_csv(test, run_dir / "test_samples.csv")
+    # 성공한 평가만 하나의 누적 CSV에 저장합니다.
+    started_at = run_time()
+    run_dir = Path(output_root)
     print(f"평가 모델: {bundle.get('model_name', 'unknown')}")
     print(f"평가 대상: {len(test)}장 / 과일: {', '.join(sorted(test['fruit'].unique()))}")
 
@@ -168,27 +166,27 @@ def evaluate(
     result["predicted_label"] = predictions.astype(int)
     result["predicted_ripeness"] = result["predicted_label"].map(inverse)
     result["correct"] = result["ripeness_label"] == result["predicted_label"]
-    save_csv(result, run_dir / "predictions.csv")
-    save_csv(result.loc[~result["correct"]], run_dir / "misclassified.csv")
-    save_csv(X, run_dir / "test_features.csv")
 
     summaries = []
     subsets = [("overall", result)] + list(result.groupby("fruit", sort=True))
-    for number, (scope, frame) in enumerate(subsets):
+    for scope, frame in subsets:
         metrics, report, matrix = score_subset(frame, labels, names)
-        summaries.append({"scope": scope, **metrics})
-        folder = run_dir / f"subset_{number}"
-        folder.mkdir()
-        save_csv(report, folder / "classification_report.csv", index=True)
-        save_csv(matrix, folder / "confusion_matrix.csv", index=True)
+        summaries.append({
+            "evaluated_at": started_at.isoformat(timespec="microseconds"),
+            "dataset_id": sample_id(frame),
+            "scope": scope,
+            "accuracy": metrics["accuracy"],
+            "macro_f1": metrics["macro_f1"],
+        })
         print(f"\n[{scope}] Accuracy={metrics['accuracy']:.4f}, Macro F1={metrics['macro_f1']:.4f}")
         print(matrix.to_string())
         if metrics["missing_true_classes"]:
             print(f"Test에 없는 숙도: {metrics['missing_true_classes']}")
-        print(f"상세 결과: {folder}")
 
     summary = pd.DataFrame(summaries)
-    save_csv(summary, run_dir / "metrics.csv")
+    rebuild_evaluation_history(output_root, current=summary)
+    print(f"\n누적 성능 CSV: {Path(output_root) / 'evaluation_history.csv'}")
+    print(f"비교 그래프: {Path(output_root) / 'evaluation_history.svg'}")
     print(f"\n평가 완료: {run_dir}")
     return summary, run_dir
 
