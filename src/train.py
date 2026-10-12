@@ -407,6 +407,12 @@ def train():
 
     return best_model, comparison
 
+# main.py 와 연결 
+
+def main():
+    """학습 프로그램의 시작점"""
+    train()
+
 
 if __name__ == "__main__":
-    train()
+    main()
