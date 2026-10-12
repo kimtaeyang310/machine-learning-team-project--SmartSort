@@ -13,10 +13,7 @@ SmartSort - 과일 숙도 판별용 특징 추출
 5. 실패한 이미지와 실패 이유를 feature_extraction_failed.csv에 저장
 6. 전처리에 실패한 이미지를 outputs/preprocessing_failed에 저장
 
-실행 방법
-프로젝트 루트에서:
 
-python -m src.feature_extraction
 """
 import sys
 from pathlib import Path
