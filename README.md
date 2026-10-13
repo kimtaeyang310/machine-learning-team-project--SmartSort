@@ -1,12 +1,11 @@
 # 🍎 SmartSort
-### 농산물 숙도·품질 자동 선별기
+### 농산물 숙도 자동 분류기
 
 **Team Project for Machine Learning Classification**
 
 스마트폰으로 직접 촬영한 농산물 이미지를 분석하여  
-농산물의 **숙도(Unripe / Ripe / Overripe)** 와  
-**품질 상태(Normal / Defective)** 를 자동으로 판별하는  
-머신러닝 기반 자동 선별 프로젝트입니다.
+농산물의 **숙도(Unripe / Ripe / Overripe)** 를 자동으로 판별하는
+머신러닝 기반 숙도 분류 프로젝트입니다. 데이터 확보 범위를 고려하여 품질 분류는 수행하지 않습니다.
 
 딥러닝 모델을 사용하지 않고,
 
@@ -21,7 +20,7 @@
 | 항목 | 내용 |
 |---|---|
 | Project Name | `machine-learning-team-project--SmartSort` |
-| Project Topic | 농산물 숙도·품질 자동 선별기 |
+| Project Topic | 농산물 숙도 자동 분류기 |
 | Project Type | Machine Learning Mini Project |
 | Duration | 6일 |
 | Team Size | 2명 |
@@ -39,8 +38,8 @@
 - Classification
 - PCA
 - Scikit-learn
-- LightGBM
-- XGBoost
+- K-Nearest Neighbors (KNN)
+- Decision Tree (DT)
 
 ---
 
@@ -48,8 +47,8 @@
 
 | 이름 | 담당 | 주요 역할 |
 |---|---|---|
-| 류채연 | **Data & Analysis** | 데이터 수집·정리, 라벨링, 데이터 품질 점검, EDA, 시각화, 발표 자료 정리 |
-| 김태양 | **Model & Evaluation** | 이미지 전처리, 특징 추출, 머신러닝 모델 학습·비교, 튜닝, 성능 평가, 오분류 분석 |
+| 김태양 | **Data & Analysis** | 데이터 수집·정리, 라벨링, 데이터 품질 점검, EDA, 시각화, 발표 자료 정리 |
+| 류채연 | **Model & Evaluation** | 이미지 전처리, 특징 추출, 머신러닝 모델 학습·비교, 튜닝, 성능 평가, 오분류 분석 |
 
 > 최종 데이터 검수, Feature 선정, 결과 분석, README 및 발표 자료 작성은 두 팀원이 함께 진행합니다.
 
@@ -58,7 +57,7 @@
 # 🎯 1. 프로젝트 소개
 
 농산물은 숙성 과정에서 색상이 변화하고,  
-시간이 지나면서 표면에 반점이나 흠집 등의 품질 변화가 발생할 수 있습니다.
+시간이 지나면서 갈변이나 표면 색상 변화가 발생할 수 있습니다.
 
 예를 들어 바나나는 숙성됨에 따라 다음과 같은 변화를 보일 수 있습니다.
 
@@ -71,9 +70,9 @@
 ```
 
 SmartSort는 이러한 **색상 변화와 표면 특징을 이미지에서 추출**하여  
-농산물의 상태를 자동으로 판별하는 것을 목표로 합니다.
+농산물의 숙도를 자동으로 판별하는 것을 목표로 합니다.
 
-본 프로젝트에서는 두 가지 분류 문제를 다룹니다.
+본 프로젝트에서는 숙도 3단계 분류 문제를 다룹니다.
 
 ### 숙도 분류
 
@@ -83,14 +82,6 @@ Unripe
 Ripe
   ↓
 Overripe
-```
-
-### 품질 상태 분류
-
-```text
-Normal
-   /
-Defective
 ```
 
 프로젝트의 기본 처리 방식은 다음과 같습니다.
@@ -111,11 +102,10 @@ Machine Learning
 
 - 스마트폰을 이용한 직접 이미지 데이터셋 구축
 - 농산물 숙도 3단계 분류
-- 농산물 품질 상태 2단계 분류
 - OpenCV 기반 이미지 전처리
 - K-means를 이용한 배경과 농산물 영역 분리
 - HSV 기반 색상 특징 추출
-- 농산물 표면의 흠집 및 반점 특징 추출
+- 숙도 분류를 위한 밝기·채도·영역 특징 추출
 - Feature Dataset 생성
 - 여러 머신러닝 모델 성능 비교
 - Macro F1 Score 기반 모델 평가
@@ -139,7 +129,7 @@ Input Image
 
 ---
 
-## 출력 1 — 숙도 분류
+## 출력 — 숙도 분류
 
 농산물의 숙도를 다음 3단계로 분류합니다.
 
@@ -158,24 +148,6 @@ Confidence          : 89.4%
 
 ---
 
-## 출력 2 — 품질 상태 분류
-
-농산물의 표면 상태를 기준으로 다음 2단계로 분류합니다.
-
-| Label | Description |
-|---|---|
-| `normal` | 정상 |
-| `defective` | 흠집·반점 등 이상 상태 |
-
-예상 출력:
-
-```text
-Quality Prediction : normal
-Confidence         : 91.2%
-```
-
----
-
 ## 최종 출력 예시
 
 ```text
@@ -184,10 +156,8 @@ SmartSort Prediction
 -----------------------------
 
 Ripeness : Ripe
-Quality  : Normal
 
 Ripeness Confidence : 89.4%
-Quality Confidence  : 91.2%
 ```
 
 ---
@@ -197,7 +167,6 @@ Quality Confidence  : 91.2%
 | 항목 | 목표 |
 |---|---|
 | Ripeness Classification | Macro F1 Score ≥ 0.85 |
-| Quality Classification | Macro F1 Score ≥ 0.85 |
 | Processing Speed | 25 FPS 이상 |
 | Generalization | 다른 날짜·조명 환경에서도 안정적인 분류 |
 
@@ -222,7 +191,7 @@ HSV 색상 특징 추출
         ↓
 색상 비율 특징 추출
         ↓
-표면 / 반점 특징 추출
+밝기 / 채도 / 영역 특징 추출
         ↓
 Feature Dataset 생성
         ↓
@@ -232,10 +201,6 @@ Machine Learning Model 학습
         ↓
  ┌─────────────────────┐
  │ Ripeness Classifier │
- └─────────────────────┘
-        +
- ┌─────────────────────┐
- │ Quality Classifier  │
  └─────────────────────┘
         ↓
 모델 성능 비교
@@ -255,17 +220,17 @@ Prediction + Confidence 출력
 ## 데이터 수집
 
 같은 품종의 농산물을 일정 기간 보관하면서  
-숙도와 표면 상태 변화를 촬영합니다.
+숙도에 따른 외관 변화를 촬영합니다.
 
 예시:
 
 ```text
-Day 1 → unripe / normal
-Day 2 → unripe / normal
-Day 3 → ripe / normal
-Day 4 → ripe / defective
-Day 5 → overripe / defective
-Day 6 → overripe / defective
+Day 1 → unripe
+Day 2 → unripe
+Day 3 → ripe
+Day 4 → ripe
+Day 5 → overripe
+Day 6 → overripe
 ```
 
 최소 **100장 이상의 이미지 확보**를 목표로 합니다.
@@ -289,16 +254,16 @@ Day 6 → overripe / defective
 예시:
 
 ```text
-banana_day01_normal_001.jpg
-banana_day01_normal_002.jpg
-banana_day04_defective_001.jpg
+20261003_tomato_T01_indoor_01.jpg
+20261003_tomato_T01_indoor_02.jpg
+20261006_tomato_T01_indoor_01.jpg
 ```
 
 ---
 
 # 🏷️ 8. Labeling
 
-하나의 이미지에 **숙도 라벨과 품질 라벨을 각각 부여**합니다.
+이미지에 **숙도 라벨**을 부여합니다. 직접 촬영한 귤·토마토는 개체·날짜 단위로 라벨과 split을 관리하고, 바나나는 폴더명에서 숙도 라벨을 읽습니다.
 
 ## Ripeness Label
 
@@ -308,21 +273,14 @@ banana_day04_defective_001.jpg
 2 → overripe
 ```
 
-## Quality Label
-
-```text
-0 → normal
-1 → defective
-```
-
-예시 Metadata:
+직접 촬영 데이터의 Metadata 예시 (`data/metadata/fruit_labels.csv`):
 
 ```csv
-filename,ripeness,quality,date,light
-banana_001.jpg,unripe,normal,2026-10-03,normal
-banana_002.jpg,ripe,normal,2026-10-04,normal
-banana_003.jpg,ripe,defective,2026-10-05,normal
-banana_004.jpg,overripe,defective,2026-10-06,normal
+fruit,fruit_id,date,ripeness,group_id,split
+tomato,T01,2026-10-03,unripe,T01_20261003,train
+tomato,T01,2026-10-04,ripe,T01_20261004,train
+tomato,T02,2026-10-04,ripe,T02_20261004,test
+mandarin,M01,2026-10-06,overripe,M01_20261006,train
 ```
 
 두 팀원이 이미지를 확인하고 라벨링하며,  
@@ -332,28 +290,14 @@ banana_004.jpg,overripe,defective,2026-10-06,normal
 
 # ✂️ 9. Train / Test Split
 
-동일한 농산물 또는 같은 날 촬영한 이미지가  
-Train과 Test에 동시에 포함되지 않도록 주의합니다.
+- 직접 촬영한 귤·토마토는 Metadata에 지정한 `train` / `test`를 사용합니다.
+- 바나나는 같은 원본의 증강 사진을 하나의 그룹으로 묶어 숙도별 원본 그룹의 약 20%를 Test에 배정합니다.
+- 학습과 Test 사이에 같은 그룹이 들어가지 않도록 검사합니다.
+- Train 내부에서는 동일한 3-fold StratifiedGroupKFold로 5개 모델을 비교합니다.
 
-단순한 Random Split뿐 아니라  
-**촬영 날짜 또는 농산물 단위 Group Split**을 고려합니다.
+현재 직접 촬영 데이터의 `group_id`는 **개체 ID + 촬영 날짜**입니다. 따라서 같은 개체의 다른 날짜 사진은 서로 다른 그룹으로 취급됩니다. 이 방식은 새 개체에 대한 일반화 성능을 완전히 보장하지 않으며, 개체 단위 검증은 별도의 개선 항목입니다.
 
-예시:
-
-```text
-Train
- ├── Day 1
- ├── Day 2
- ├── Day 3
- └── Day 4
-
-Test
- ├── Day 5
- └── Day 6
-```
-
-이를 통해 비슷한 이미지가 Train과 Test에 동시에 포함되면서 발생할 수 있는  
-**Data Leakage**를 줄입니다.
+Test는 최종 평가에 사용합니다. Test 결과를 반복해서 보며 설정을 바꿨다면 최종 보고용으로 별도의 미사용 데이터를 확보해야 합니다.
 
 ---
 
@@ -436,45 +380,48 @@ Fruit Mask 생성
 
 ---
 
-## Defect Features
+## Brightness / Saturation / Area Features
 
-품질 상태를 판단하기 위해  
-농산물 표면의 흠집 및 반점 특징을 추출합니다.
+숙도에 따른 어두운 영역과 채도 변화를 수치화하며, 품질 라벨을 예측하지 않습니다.
 
-- Dark Region Ratio
-- Dark Pixel Ratio
-- Defect Area
-- Largest Defect Area
-- Defect Count
-- Connected Components Count
-
-필요한 경우 다음 방법도 추가로 실험합니다.
-
-- Threshold
-- Connected Components
-- DBSCAN
-- LBP
+- Dark Ratio: 과일 영역에서 V < 60인 픽셀 비율
+- Low Saturation Ratio: 과일 영역에서 S < 40인 픽셀 비율
+- Area Ratio: 패딩 전 영상에서 과일 영역 비율
+- Fruit Pixel Count: 과일 마스크의 픽셀 수
 
 ---
 
 # 🤖 13. Machine Learning Models
 
-Feature Dataset을 이용하여 여러 머신러닝 모델을 학습하고 비교합니다.
+`src/train.py`의 `get_models()`에서 다음 5개 숙도 분류 모델을 비교합니다.
 
-## 기본 비교 모델
+| 모델 | 전처리 | 주요 초기 설정 |
+|---|---|---|
+| Logistic Regression | StandardScaler | max_iter=3000, class_weight=balanced |
+| SVM | StandardScaler | RBF kernel, C=1.0, gamma=scale, class_weight=balanced |
+| Random Forest | 별도 표준화 없음 | n_estimators=300, min_samples_leaf=2, class_weight=balanced |
+| K-Nearest Neighbors (KNN) | StandardScaler | n_neighbors=5, weights=uniform |
+| Decision Tree (DT) | 별도 표준화 없음 | max_depth=5, min_samples_leaf=2, class_weight=balanced |
 
-- Logistic Regression
-- Support Vector Machine
-- Random Forest
+KNN은 특징 간 거리로 판단하므로 단위가 다른 특징을 표준화합니다. DT는 과적합을 줄이기 위해 깊이와 말단 노드의 최소 샘플 수를 제한합니다. KNN·DT 설정은 초기 비교용이며 최적화된 값이 아닙니다.
 
-## 추가 실험 모델
+- 같은 특징과 동일한 3-fold StratifiedGroupKFold 분할로 비교합니다.
+- StandardScaler는 Pipeline 내부에서 각 fold의 학습 데이터에만 맞춥니다.
+- 교차검증 Macro F1 평균이 가장 높은 모델을 선택하고 Train 전체로 재학습합니다.
+- Test는 모델 선택이나 튜닝에 사용하지 않으며, 최종 평가는 `src/evaluate.py`에서 수행합니다.
+- 모델별 평균·표준편차·fold별 점수는 `outputs/training/model_comparison.csv`에 저장됩니다.
+- 누적 학습 기록과 그래프에도 5개 모델의 결과가 반영됩니다.
+- 기존 3개 모델의 결과는 과거 기록입니다. 5개 모델의 실제 비교 결과는 새 학습 실행 후 생성됩니다.
 
-프로젝트 진행 상황에 따라 다음 모델도 실험합니다.
+실행 (프로젝트 최상위 폴더):
 
-- K-Nearest Neighbors
-- Decision Tree
-- LightGBM
-- XGBoost
+```bash
+python -m src.train
+python -m src.evaluate
+python -m src.predict "data/raw/이미지경로.jpg"
+```
+
+학습을 실행하면 `models/ripeness_model.joblib`과 최신 학습 결과가 갱신됩니다. 실행별 모델 비교 기록은 별도로 보관됩니다.
 
 ---
 
@@ -496,28 +443,7 @@ Unripe / Ripe / Overripe
 
 ---
 
-# 🔍 15. Quality Classification
-
-품질 상태 분류 모델은  
-색상뿐만 아니라 표면의 반점과 흠집 정보를 중요하게 사용합니다.
-
-```text
-Defect Features
-      +
-Dark Region Ratio
-      +
-Connected Components
-      +
-Color Features
-      ↓
-Machine Learning Model
-      ↓
-Normal / Defective
-```
-
----
-
-# 🔬 16. Feature Ablation
+# 🔬 15. Feature Ablation
 
 각 특징이 모델 성능에 얼마나 영향을 미치는지 확인하기 위해  
 Feature Ablation 실험을 진행합니다.
@@ -539,15 +465,15 @@ HSV Features
 Experiment 3
 HSV Features
 + Color Ratio
-+ Defect Features
++ Brightness / Saturation / Area Features
 ```
 
-이를 통해 숙도 분류와 품질 분류에  
+이를 통해 숙도 분류에
 어떤 Feature가 가장 중요한지 확인합니다.
 
 ---
 
-# 📊 17. Model Evaluation
+# 📊 16. Model Evaluation
 
 모델 성능은 다음 지표를 사용해 평가합니다.
 
@@ -565,12 +491,11 @@ HSV Features
 
 ```text
 Ripeness Macro F1 >= 0.85
-Quality Macro F1  >= 0.85
 ```
 
 ---
 
-# 📉 18. PCA & Error Analysis
+# 📉 17. PCA & Error Analysis
 
 모델의 결과를 점수만 확인하는 것이 아니라  
 오분류된 데이터를 직접 분석합니다.
@@ -588,7 +513,6 @@ PCA
 PCA 결과를 이용하여 다음 내용을 확인합니다.
 
 - 숙도별 데이터 분포
-- 품질 상태별 데이터 분포
 - 클래스 간 겹치는 영역
 - 이상치
 - 오분류 데이터
@@ -596,7 +520,7 @@ PCA 결과를 이용하여 다음 내용을 확인합니다.
 
 ---
 
-# ⚡ 19. Performance
+# ⚡ 18. Performance
 
 분류 정확도뿐만 아니라  
 이미지 한 장을 처리하는 속도도 측정합니다.
@@ -625,9 +549,9 @@ FPS = 1 / 이미지 1장 평균 처리 시간
 
 ---
 
-# 👥 20. Team Roles
+# 👥 19. Team Roles
 
-## 🅰️ 류채연 — Data & Analysis
+## 🅰️ 김태양 — Data & Analysis
 
 ### 주요 담당
 
@@ -635,7 +559,6 @@ FPS = 1 / 이미지 1장 평균 처리 시간
 - 촬영 규칙 관리
 - 파일명 및 데이터 폴더 관리
 - Ripeness Labeling
-- Quality Labeling
 - 라벨 품질 검토
 - Metadata 관리
 - Train / Test Group 분할
@@ -659,7 +582,7 @@ Presentation Material
 
 ---
 
-## 🅱️ 김태양 — Model & Evaluation
+## 🅱️ 류채연 — Model & Evaluation
 
 ### 주요 담당
 
@@ -668,12 +591,10 @@ Presentation Material
 - Fruit Mask 생성
 - HSV Feature Extraction
 - Color Ratio Feature Extraction
-- Defect Feature Extraction
+- Brightness / Saturation / Area Feature Extraction
 - Feature Dataset 생성
 - 숙도 분류 모델 구현
-- 품질 분류 모델 구현
-- Logistic Regression / SVM / Random Forest 비교
-- LightGBM / XGBoost 추가 실험
+- Logistic Regression / SVM / Random Forest / KNN / DT 비교
 - Hyperparameter Tuning
 - Macro F1 Score 평가
 - Confusion Matrix 분석
@@ -708,20 +629,20 @@ Evaluation Results
 
 ---
 
-# 📅 21. 6-Day Project Plan
+# 📅 20. 6-Day Project Plan
 
 | Day | 주요 작업 |
 |---|---|
 | Day 1 | 프로젝트 설계, 데이터 촬영 기준 확정, 초기 데이터 수집 |
 | Day 2 | 데이터 수집 및 라벨링, Metadata 작성, EDA |
 | Day 3 | 이미지 전처리, K-means 배경 제거, Mask 생성 |
-| Day 4 | HSV / Color Ratio / Defect Feature 추출, Feature Dataset 생성 |
+| Day 4 | HSV / Color Ratio / Brightness / Saturation / Area Feature 추출, Feature Dataset 생성 |
 | Day 5 | 머신러닝 모델 학습·비교, Hyperparameter Tuning, 평가 |
 | Day 6 | PCA·오분류 분석, 최종 모델 선정, Prediction Pipeline, README·PPT 정리 |
 
 ---
 
-# ✅ 22. Project Progress
+# ✅ 21. Project Progress
 
 ## Phase 01 — Project Setup
 
@@ -742,7 +663,6 @@ Evaluation Results
 - [ ] 이미지 데이터 수집
 - [ ] 클래스별 100장 이상 데이터 확보
 - [ ] 숙도 라벨링
-- [ ] 품질 상태 라벨링
 - [ ] 라벨 품질 검토
 - [ ] Metadata 생성
 - [ ] Train / Test 데이터 분리
@@ -767,18 +687,19 @@ Evaluation Results
 - [ ] Green Ratio 계산
 - [ ] Yellow Ratio 계산
 - [ ] Brown Ratio 계산
-- [ ] Defect Feature 추출
+- [ ] Brightness / Saturation / Area Feature 추출
 - [ ] Feature Dataset 생성
 
 ---
 
 ## Phase 05 — Machine Learning
 
-- [ ] Logistic Regression
-- [ ] SVM
-- [ ] Random Forest
-- [ ] LightGBM
-- [ ] XGBoost
+- [x] Logistic Regression 구현
+- [x] SVM 구현
+- [x] Random Forest 구현
+- [x] KNN 구현
+- [x] Decision Tree 구현
+- [ ] 5개 모델 실제 데이터 학습·성능 비교
 - [ ] Hyperparameter Tuning
 - [ ] Feature Ablation
 
@@ -787,7 +708,6 @@ Evaluation Results
 ## Phase 06 — Evaluation
 
 - [ ] Ripeness Classification 평가
-- [ ] Quality Classification 평가
 - [ ] Accuracy
 - [ ] Precision
 - [ ] Recall
@@ -810,10 +730,10 @@ Evaluation Results
 
 ---
 
-# 🚀 23. Expected Result
+# 🚀 22. Expected Result
 
 최종적으로 이미지 한 장을 입력하면  
-숙도와 품질 상태를 함께 예측하는 것을 목표로 합니다.
+미숙·적숙·과숙 중 하나의 숙도를 예측합니다.
 
 ```text
              Input Image
@@ -824,16 +744,11 @@ Evaluation Results
                   ↓
           Feature Extraction
                   ↓
-      ┌───────────┴───────────┐
-      ↓                       ↓
-Ripeness Model           Quality Model
-      ↓                       ↓
-Unripe / Ripe /        Normal /
-Overripe               Defective
-      │                       │
-      └───────────┬───────────┘
+            Ripeness Model
                   ↓
-        Final Prediction
+       Unripe / Ripe / Overripe
+                  ↓
+          Ripeness Prediction
 ```
 
 예상 결과:
@@ -844,24 +759,24 @@ SmartSort Prediction
 --------------------------------
 
 Ripeness   : Ripe
-Quality    : Normal
 
 Ripeness Confidence : 89.4%
-Quality Confidence  : 91.2%
 ```
 
-여러 이미지를 처리할 경우 결과를 CSV 형태로 저장합니다.
+수치는 출력 형식 예시입니다. 예측 확률은 `predict_proba`를 지원하는 모델에서만 표시되며, 현재 SVM 설정은 확률을 출력하지 않습니다. 이 값은 보정된 정답 확률을 의미하지 않습니다.
+
+일괄 예측 기능을 추가할 경우 사용할 CSV 형식 예시입니다. 현재 예측 명령은 이미지 한 장의 결과를 화면에 출력합니다.
 
 ```csv
-filename,ripeness,ripeness_confidence,quality,quality_confidence
-banana_001.jpg,ripe,0.894,normal,0.912
-banana_002.jpg,unripe,0.921,normal,0.934
-banana_003.jpg,overripe,0.861,defective,0.887
+filename,ripeness,ripeness_confidence
+banana_001.jpg,ripe,0.894
+banana_002.jpg,unripe,0.921
+banana_003.jpg,overripe,0.861
 ```
 
 ---
 
-# 🛠️ 24. Development Environment
+# 🛠️ 23. Development Environment
 
 - Python
 - VS Code
@@ -874,11 +789,9 @@ banana_003.jpg,overripe,0.861,defective,0.887
 ```text
 numpy
 pandas
-matplotlib
 scikit-learn
 opencv-python
-lightgbm
-xgboost
+joblib
 ```
 
 설치:
@@ -889,7 +802,7 @@ pip install -r requirements.txt
 
 ---
 
-# 🌿 25. Git Collaboration
+# 🌿 24. Git Collaboration
 
 팀원별 Feature Branch를 생성하여 작업합니다.
 
@@ -927,7 +840,7 @@ GitHub에서 Pull Request를 생성한 후
 
 ---
 
-# 📁 26. 프로젝트 구조
+# 📁 25. 프로젝트 구조
 
 ```text
 project/
@@ -961,10 +874,10 @@ project/
 
 # 🍎 SmartSort
 
-> **Machine Learning Based Agricultural Ripeness & Quality Classification System**
+> **Machine Learning Based Agricultural Ripeness Classification System**
 
 농산물 이미지에서 색상과 표면 특징을 추출하여  
-농산물의 **숙도와 품질 상태를 자동으로 판별**합니다.
+농산물의 **숙도를 자동으로 판별**합니다.
 
 ```text
 Image
@@ -973,7 +886,7 @@ Feature Extraction
   ↓
 Machine Learning
   ↓
-Ripeness + Quality
+Ripeness
   ↓
 Smart Sorting
 ```
