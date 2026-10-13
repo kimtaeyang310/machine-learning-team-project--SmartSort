@@ -119,7 +119,7 @@ Machine Learning
 
 ## 입력
 
-흰색 배경 위에서 촬영한 농산물 1개 이미지
+흰색 배경 위에서 촬영한 농산물 1개 이미지와 과일 종류(banana / mandarin / tomato)
 
 ```text
 Input Image
@@ -293,7 +293,7 @@ mandarin,M01,2026-10-06,overripe,M01_20261006,train
 - 직접 촬영한 귤·토마토는 Metadata에 지정한 `train` / `test`를 사용합니다.
 - 바나나는 같은 원본의 증강 사진을 하나의 그룹으로 묶어 숙도별 원본 그룹의 약 20%를 Test에 배정합니다.
 - 학습과 Test 사이에 같은 그룹이 들어가지 않도록 검사합니다.
-- Train 내부에서는 동일한 3-fold StratifiedGroupKFold로 5개 모델을 비교합니다.
+- Train을 과일별로 나누고 각 과일 안에서 동일한 3-fold StratifiedGroupKFold로 5개 모델을 비교합니다.
 
 현재 직접 촬영 데이터의 `group_id`는 **개체 ID + 촬영 날짜**입니다. 따라서 같은 개체의 다른 날짜 사진은 서로 다른 그룹으로 취급됩니다. 이 방식은 새 개체에 대한 일반화 성능을 완전히 보장하지 않으며, 개체 단위 검증은 별도의 개선 항목입니다.
 
@@ -393,7 +393,7 @@ Fruit Mask 생성
 
 # 🤖 13. Machine Learning Models
 
-`src/train.py`의 `get_models()`에서 다음 5개 숙도 분류 모델을 비교합니다.
+`src/train.py`에서 **바나나·귤·토마토를 분리하여 각각 다음 5개 숙도 분류 모델을 비교**합니다. 각 과일은 자기 과일의 학습 사진만 사용하고, 과일별로 최고 모델을 선택합니다.
 
 | 모델 | 전처리 | 주요 초기 설정 |
 |---|---|---|
@@ -405,23 +405,43 @@ Fruit Mask 생성
 
 KNN은 특징 간 거리로 판단하므로 단위가 다른 특징을 표준화합니다. DT는 과적합을 줄이기 위해 깊이와 말단 노드의 최소 샘플 수를 제한합니다. KNN·DT 설정은 초기 비교용이며 최적화된 값이 아닙니다.
 
-- 같은 특징과 동일한 3-fold StratifiedGroupKFold 분할로 비교합니다.
+- 과일별로 3-fold StratifiedGroupKFold를 구성하고, 해당 과일의 5개 후보는 동일한 특징과 분할로 비교합니다.
 - StandardScaler는 Pipeline 내부에서 각 fold의 학습 데이터에만 맞춥니다.
-- 교차검증 Macro F1 평균이 가장 높은 모델을 선택하고 Train 전체로 재학습합니다.
+- 과일별 교차검증 Macro F1 평균이 가장 높은 모델을 선택하고 해당 과일의 Train 전체로 재학습합니다. 바나나·귤·토마토에서 서로 다른 알고리즘이 선택될 수 있습니다.
 - Test는 모델 선택이나 튜닝에 사용하지 않으며, 최종 평가는 `src/evaluate.py`에서 수행합니다.
-- 모델별 평균·표준편차·fold별 점수는 `outputs/training/model_comparison.csv`에 저장됩니다.
-- 누적 학습 기록과 그래프에도 5개 모델의 결과가 반영됩니다.
-- 기존 3개 모델의 결과는 과거 기록입니다. 5개 모델의 실제 비교 결과는 새 학습 실행 후 생성됩니다.
+- 모델별 평균·표준편차·fold별 점수는 `outputs/training/by_fruit/model_comparison.csv`에 저장됩니다.
+- 통합 비교 CSV에는 과일마다 5행씩 총 15행과 `fruit`, `selected` 열이 저장됩니다.
+- 과일별 상세 비교·누적 학습 기록·그래프는 `outputs/training/by_fruit/banana/`, `mandarin/`, `tomato/`에 저장됩니다.
+- 기존 통합 모델과 과거 학습 결과는 보존합니다. 과일별 모델의 결과는 새로운 학습 경로에 저장됩니다.
+- 과일별 데이터에 숙도 3개가 모두 있어야 하며 각 검증 fold에도 3개 숙도가 필요합니다. 부족하면 분할 기준을 임의로 완화하지 않고 오류를 표시합니다.
 
 실행 (프로젝트 최상위 폴더):
 
 ```bash
 python -m src.train
 python -m src.evaluate
-python -m src.predict "data/raw/이미지경로.jpg"
+python -m src.predict "data/raw/이미지경로.jpg" --fruit tomato
 ```
 
-학습을 실행하면 `models/ripeness_model.joblib`과 최신 학습 결과가 갱신됩니다. 실행별 모델 비교 기록은 별도로 보관됩니다.
+학습을 실행하면 `models/ripeness_by_fruit.joblib`에 과일별 분류기 3개와 공통 전처리 설정을 하나의 묶음으로 저장합니다. 다음 실행부터 이 파일과 `outputs/training/by_fruit/`의 최신 결과를 갱신하며 실행별 비교 기록은 보관합니다. 기존 `models/ripeness_model.joblib`은 자동으로 대체하거나 사용하지 않습니다.
+
+새 이미지 예측에는 `--fruit banana`, `--fruit mandarin`, `--fruit tomato` 중 하나가 필요합니다. 과일 종류를 자동 인식하는 기능은 없으며, 사용자가 잘못 지정하면 다른 과일 모델로 예측할 수 있습니다. `python main.py` 메뉴에서도 과일 종류를 입력합니다.
+
+평가는 저장된 Test 목록의 `fruit` 열에 따라 모델을 선택합니다. 전체·과일별 점수는 기존 `outputs/evaluation/evaluation_history.csv`와 그래프에 계속 누적하므로 같은 Test 목록이면 과거 통합 모델 결과와 비교할 수 있습니다. 이는 **과일 종류가 주어진 조건**에서의 숙도 성능이며, 과일 종류 자동 인식 성능을 포함하지 않습니다.
+
+---
+
+## 과일별 모델 첫 실행 결과 (2026-10-13)
+
+학습 2,086장·Test 491장의 기존 분할을 유지하고, 학습 내부 교차검증으로만 모델을 선택했습니다.
+
+| 과일 | 선택 모델 | CV Macro F1 | Test Macro F1 | Test Accuracy |
+|---|---|---:|---:|---:|
+| 바나나 | Random Forest | 0.9354 | 0.9048 | 0.9044 |
+| 귤 | Random Forest | 0.9267 | 0.8413 | 0.8571 |
+| 토마토 | SVM | 0.7592 | 0.3500 | 0.5273 |
+
+전체 Test Macro F1은 0.8538, Accuracy는 0.8554입니다. 직전 통합 KNN 대비 귤은 개선됐으나 바나나·토마토는 하락했습니다. 과일별 분리가 성능 향상을 보장하지 않으며, 토마토는 데이터·특징·검증 분할의 추가 분석이 필요합니다. 이 결과를 근거로 Test에서 가장 잘 나온 후보를 다시 선택하지는 않았습니다.
 
 ---
 
@@ -699,7 +719,7 @@ Evaluation Results
 - [x] Random Forest 구현
 - [x] KNN 구현
 - [x] Decision Tree 구현
-- [ ] 5개 모델 실제 데이터 학습·성능 비교
+- [x] 과일별 5개 모델 실제 데이터 학습·성능 비교
 - [ ] Hyperparameter Tuning
 - [ ] Feature Ablation
 
@@ -744,7 +764,7 @@ Evaluation Results
                   ↓
           Feature Extraction
                   ↓
-            Ripeness Model
+        Selected Fruit Ripeness Model
                   ↓
        Unripe / Ripe / Overripe
                   ↓
@@ -857,6 +877,7 @@ project/
 │   ├── feature_extraction.py
 │   ├── dataset.py
 │   ├── train.py
+│   ├── model_bundle.py
 │   ├── evaluate.py
 │   ├── predict.py
 │   └── utils.py

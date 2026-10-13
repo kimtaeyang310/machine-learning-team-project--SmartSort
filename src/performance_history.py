@@ -72,6 +72,63 @@ def draw_history(history, path, series_column, metrics, title):
 EVALUATION_COLUMNS = ["evaluated_at", "scope", "dataset_id", "accuracy", "macro_f1"]
 
 
+def draw_evaluation_history(history, path):
+    """한 좌표계에 과일별 Macro F1 네 계열을 표시합니다."""
+    series = [("overall", "전체", "#2563eb"), ("banana", "바나나", "#b77900"),
+              ("mandarin", "귤", "#059669"), ("tomato", "토마토", "#dc2626")]
+    frame = history[history["scope"].isin([s[0] for s in series])].copy()
+    frame["time"] = pd.to_datetime(frame["evaluated_at"], utc=True)
+    frame = frame.sort_values("time", kind="stable")
+    times = sorted(frame["time"].unique())
+    positions = {time: i for i, time in enumerate(times)}
+    left, right, top, bottom = 80, 1135, 170, 535
+
+    def x_for(time):
+        return (left + right) / 2 if len(times) == 1 else left + (right - left) * positions[time] / max(1, len(times) - 1)
+
+    svg = ['<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="660" viewBox="0 0 1200 660" role="img" aria-label="전체, 바나나, 귤, 토마토의 평가 Macro F1 추이">',
+           '<rect width="1200" height="660" rx="18" fill="#f8fafc"/>',
+           '<g font-family="Segoe UI, Malgun Gothic, sans-serif" fill="#172033">',
+           '<text x="40" y="44" font-size="26" font-weight="bold">숙도 분류 성능 추이</text>',
+           '<text x="40" y="73" font-size="14" fill="#475569">Macro F1 · 높을수록 좋음 · 평가 실행 순서 / 한국 시간</text>']
+    for i, (scope, name, color) in enumerate(series):
+        data = frame[frame["scope"].eq(scope)]
+        value = f'{float(data.iloc[-1]["macro_f1"]):.4f}' if not data.empty else "기록 없음"
+        x = 45 + i * 288
+        svg += [f'<line x1="{x}" y1="115" x2="{x + 27}" y2="115" stroke="{color}" stroke-width="4"/>',
+                f'<text x="{x + 38}" y="121" font-size="17">{name}  <tspan fill="{color}" font-weight="bold">{value}</tspan></text>']
+    for tick in range(11):
+        value = tick / 10
+        y = bottom - value * (bottom - top)
+        svg += [f'<line x1="{left}" y1="{y}" x2="{right}" y2="{y}" stroke="#e2e8f0"/>',
+                f'<text x="62" y="{y + 5}" text-anchor="end" font-size="13" fill="#64748b">{value:.1f}</text>']
+    step = max(1, (len(times) + 7) // 8)
+    for i, time in enumerate(times):
+        if i % step and i != len(times) - 1:
+            continue
+        stamp = pd.Timestamp(time).tz_convert("Asia/Seoul")
+        x = x_for(time)
+        svg.append(f'<text x="{x}" y="563" text-anchor="middle" font-size="12" fill="#475569">{stamp:%m/%d}<tspan x="{x}" dy="18">{stamp:%H:%M}</tspan></text>')
+    for scope, name, color in series:
+        data = frame[frame["scope"].eq(scope)]
+        svg.append(f'<g data-series="{scope}" stroke="{color}">')
+        previous = None
+        for row in data.itertuples():
+            x, y = x_for(row.time), bottom - float(row.macro_f1) * (bottom - top)
+            changed = previous is not None and previous[2] != row.dataset_id
+            if previous is not None:
+                dash = ' stroke-dasharray="6 5"' if changed else ''
+                svg.append(f'<line x1="{previous[0]}" y1="{previous[1]}" x2="{x}" y2="{y}" stroke-width="2.5"{dash}/>')
+            tooltip = escape(f"{name} | {row.evaluated_at} | Macro F1={row.macro_f1:.4f} | Accuracy={row.accuracy:.4f} | dataset={row.dataset_id}" + (" | 평가 데이터 변경" if changed else ""))
+            svg.append(f'<circle cx="{x}" cy="{y}" r="4.5" fill="{color}" stroke="#fff" stroke-width="1.5"><title>{tooltip}</title></circle>')
+            previous = (x, y, row.dataset_id)
+        svg.append('</g>')
+    svg += ['<text x="40" y="615" font-size="13" fill="#475569">점 위에 마우스를 올리면 정확도·실행 시각·데이터 구분값을 확인할 수 있습니다.</text>',
+            '<text x="40" y="638" font-size="13" fill="#475569">점선: 평가 데이터가 바뀐 구간입니다. 해당 구간의 점수 차이를 모델 개선만으로 해석하지 마세요.</text>',
+            '</g></svg>']
+    Path(path).write_text("\n".join(svg), encoding="utf-8")
+
+
 def rebuild_evaluation_history(output_root, current=None):
     """완료된 평가만 집계하며, 기존 형식도 원래 실행 시각으로 가져옵니다."""
     root = Path(output_root)
@@ -111,8 +168,7 @@ def rebuild_evaluation_history(output_root, current=None):
     history = history.drop_duplicates(["evaluated_at", "scope", "dataset_id"], keep="last")
     history = history.sort_values(["evaluated_at", "scope"]).reset_index(drop=True)
     save_csv(history, history_path)
-    draw_history(history, root / "evaluation_history.svg", "scope",
-                 ["accuracy", "macro_f1"], "Test evaluation history")
+    draw_evaluation_history(history, root / "evaluation_history.svg")
     return history
 
 

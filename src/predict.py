@@ -3,9 +3,9 @@
 """새로운 이미지 1장의 숙도를 예측.
 
 실행:
-    python src/predict.py "data/raw/새사진.jpg"
+    python src/predict.py "data/raw/새사진.jpg" --fruit tomato
 또는
-    python -m src.predict "data/raw/새사진.jpg"
+    python -m src.predict "data/raw/새사진.jpg" --fruit tomato
 
 학습 때 저장한 전처리 설정과 특징 순서를 그대로 사용합니다.
 """
@@ -35,13 +35,13 @@ import pandas as pd
 
 from src.preprocessing import preprocess
 from src.feature_extraction import extract_features
+from src.model_bundle import MODEL_PATH, FRUITS, validate_bundle, select_model
 
 
 # ============================================================
 # 3. 경로 설정
 # ============================================================
 
-MODEL_PATH = PROJECT_ROOT / "models" / "ripeness_model.joblib"
 RAW_DIR = PROJECT_ROOT / "data" / "raw"
 
 
@@ -60,19 +60,7 @@ def load_model(model_path):
 
     bundle = joblib.load(model_path)
 
-    required = {
-        "model",
-        "feature_names",
-        "label_mapping",
-        "preprocess_config",
-    }
-
-    if not isinstance(bundle, dict) or not required.issubset(bundle):
-        raise ValueError(
-            "저장된 모델 형식이 train.py에서 저장한 형식과 다릅니다."
-        )
-
-    return bundle
+    return validate_bundle(bundle)
 
 
 # ============================================================
@@ -169,7 +157,7 @@ def extract_image_features(image_path, bundle):
 # 7. 숙도 예측
 # ============================================================
 
-def predict(image_path, model_path=MODEL_PATH):
+def predict(image_path, model_path=MODEL_PATH, *, fruit=None):
     """새 이미지 한 장의 숙도를 예측합니다."""
 
     # --------------------------------------------------------
@@ -178,7 +166,7 @@ def predict(image_path, model_path=MODEL_PATH):
 
     bundle = load_model(model_path)
 
-    model = bundle["model"]
+    model, model_name = select_model(bundle, fruit)
     label_mapping = bundle["label_mapping"]
 
     # 숫자 라벨 → 숙도 이름
@@ -233,7 +221,8 @@ def predict(image_path, model_path=MODEL_PATH):
     print("=" * 50)
 
     print(f"이미지 : {image_path.name}")
-    print(f"모델   : {bundle.get('model_name', 'unknown')}")
+    print(f"과일   : {fruit}")
+    print(f"모델   : {model_name}")
     print(f"예측   : {predicted_name}")
 
     # --------------------------------------------------------
@@ -302,21 +291,15 @@ def predict(image_path, model_path=MODEL_PATH):
 # ============================================================
 
 if __name__ == "__main__":
+    import argparse
 
-    if len(sys.argv) != 2:
-        print(
-            "사용법:\n"
-            '  python src/predict.py "이미지 경로"\n\n'
-            "예:\n"
-            '  python src/predict.py "data/raw/banana.jpg"'
-        )
-        raise SystemExit(1)
-
-    image_path = sys.argv[1]
-
+    parser = argparse.ArgumentParser(description="과일 종류를 지정해 숙도를 예측합니다.")
+    parser.add_argument("image_path", help="예측할 이미지 경로")
+    parser.add_argument("--fruit", required=True, choices=FRUITS,
+                        help="banana=바나나, mandarin=귤, tomato=토마토")
+    args = parser.parse_args()
     try:
-        predict(image_path)
-
+        predict(args.image_path, fruit=args.fruit)
     except (ValueError, OSError, RuntimeError) as error:
         print(f"\n예측 중단:\n{error}")
         raise SystemExit(1)

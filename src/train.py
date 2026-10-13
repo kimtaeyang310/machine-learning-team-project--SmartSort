@@ -44,11 +44,12 @@ from src.dataset import (
     split_dataset,
 )
 from src.preprocessing import preprocess
-from src.performance_history import record_training
+from src.performance_history import record_training, sample_id
+from src.model_bundle import FRUITS, MODEL_PATH, TRAINING_DIR
 
 
 MODEL_DIR = PROJECT_ROOT / "models"
-OUTPUT_DIR = PROJECT_ROOT / "outputs" / "training"
+OUTPUT_DIR = TRAINING_DIR
 
 SEED = 42
 CV_SPLITS = 3
@@ -281,165 +282,109 @@ def save_split(samples, split_name):
     )
 
 
+def fit_fruit_models(X_train, train_samples):
+    """과일별 데이터만으로 5개 모델을 비교합니다. Test는 받지 않습니다."""
+    fruits = np.asarray([s["fruit"] for s in train_samples])
+    if set(fruits) != set(FRUITS):
+        raise ValueError(f"학습 데이터에 필요한 과일: {FRUITS}; 현재: {sorted(set(fruits))}")
+    prepared = {}
+    # 모든 과일의 분할을 먼저 검사하고, 실패하면 저장 전에 중단합니다.
+    for fruit in FRUITS:
+        indices = np.flatnonzero(fruits == fruit)
+        samples = [train_samples[i] for i in indices]
+        X = X_train.iloc[indices].reset_index(drop=True)
+        y = np.asarray([s["ripeness_label"] for s in samples], dtype=np.int64)
+        groups = np.asarray([s["group_id"] for s in samples])
+        check_labels(y, fruit)
+        try:
+            splits = make_cv_splits(X, y, groups)
+        except ValueError as error:
+            raise ValueError(f"{fruit} 교차검증 구성 실패: {error}") from error
+        if any(len(a) < 5 for a, _ in splits):
+            raise ValueError(f"{fruit}: KNN 비교에는 각 fold의 학습 사진이 5장 이상 필요합니다.")
+        prepared[fruit] = (X, y, samples, splits)
+
+    scorer = make_scorer(f1_score, labels=LABEL_IDS, average="macro", zero_division=0)
+    bundles, comparisons = {}, {}
+    for fruit, (X, y, samples, splits) in prepared.items():
+        models = get_models()
+        rows = []
+        for name, model in models.items():
+            print(f"\n[{fruit}] {name} 교차검증 중...", flush=True)
+            scores = cross_val_score(model, X, y, cv=splits, scoring=scorer,
+                                     n_jobs=1, error_score="raise")
+            rows.append({
+                "model": name,
+                "cv_macro_f1_mean": float(scores.mean()),
+                "cv_macro_f1_std": float(scores.std()),
+                **{f"fold_{i}_macro_f1": float(v) for i, v in enumerate(scores, 1)},
+            })
+        comparison = pd.DataFrame(rows).sort_values(
+            "cv_macro_f1_mean", ascending=False, kind="stable"
+        ).reset_index(drop=True)
+        name = comparison.loc[0, "model"]
+        best = clone(models[name]).fit(X, y)
+        bundles[fruit] = {
+            "model": best, "model_name": name, "fruit": fruit,
+            "train_count": len(samples),
+            "cv_macro_f1": float(comparison.loc[0, "cv_macro_f1_mean"]),
+        }
+        comparisons[fruit] = comparison
+        print(f"\n[{fruit}] 모델 비교\n{comparison.to_string(index=False)}")
+        print(f"[{fruit}] 선택한 모델: {name}", flush=True)
+    return bundles, comparisons
+
+
 def train():
-    """데이터 준비부터 모델 저장까지 실행합니다."""
+    """과일별 모델을 학습하고 하나의 모델 묶음으로 저장합니다."""
     samples = load_dataset()
-
-    # CSV에 지정한 split을 그대로 사용합니다.
-    # 이전 버전의 test_size, seed 인자는 전달하지 않습니다.
     train_samples, test_samples = split_dataset(samples)
-
     print_summary(train_samples, "학습")
-
     if test_samples:
         print_summary(test_samples, "최종 테스트")
-    else:
-        print("Test 0장: 학습과 교차검증만 진행합니다.")
-
-    train_groups = {s["group_id"] for s in train_samples}
-    test_groups = {s["group_id"] for s in test_samples}
-
-    if train_groups & test_groups:
+    if {s["group_id"] for s in train_samples} & {s["group_id"] for s in test_samples}:
         raise ValueError("학습·테스트에 같은 그룹이 포함되었습니다.")
+    if {s["fruit"] for s in test_samples} - set(FRUITS):
+        raise ValueError("Test에 지원하지 않는 과일이 있습니다.")
 
-    # 학습 라벨과 교차검증 그룹 준비
-    y_train = np.asarray(
-        [s["ripeness_label"] for s in train_samples],
-        dtype=np.int64,
-    )
-
-    groups = np.asarray(
-        [s["group_id"] for s in train_samples]
-    )
-
-    check_labels(y_train, "전체 학습 데이터")
-
-    # 학습 이미지의 특징만 추출합니다.
-    print("\n학습 데이터 특징 추출")
     X_train = build_feature_table(train_samples)
-
-    cv_splits = make_cv_splits(X_train, y_train, groups)
-
-    # 숙도 3개 클래스를 동일한 비중으로 평가합니다.
-    scorer = make_scorer(
-        f1_score,
-        labels=LABEL_IDS,
-        average="macro",
-        zero_division=0,
-    )
-
-    models = get_models()
-    results = []
-
-    # 동일한 교차검증 분할로 모든 모델을 비교합니다.
-    for name, model in models.items():
-        print(f"\n{name} 교차검증 중...")
-
-        scores = cross_val_score(
-            model,
-            X_train,
-            y_train,
-            cv=cv_splits,
-            scoring=scorer,
-            n_jobs=1,
-            error_score="raise",
-        )
-
-        results.append({
-            "model": name,
-            "cv_macro_f1_mean": float(scores.mean()),
-            "cv_macro_f1_std": float(scores.std()),
-            **{
-                f"fold_{i}_macro_f1": float(score)
-                for i, score in enumerate(scores, start=1)
-            },
-        })
-
-        print(
-            f"Macro F1: {scores.mean():.4f} "
-            f"(표준편차 {scores.std():.4f})"
-        )
-
-    comparison = pd.DataFrame(results).sort_values(
-        "cv_macro_f1_mean",
-        ascending=False,
-        kind="stable",
-    ).reset_index(drop=True)
-
-    best_name = comparison.loc[0, "model"]
-    best_model = clone(models[best_name])
-
-    # 교차검증에서 선택한 모델을 Train 전체로 다시 학습합니다.
-    # Test는 모델 선택이나 학습에 사용하지 않습니다.
-    best_model.fit(X_train, y_train)
-
+    models, comparisons = fit_fruit_models(X_train, train_samples)
+    bundle = {
+        "schema_version": 2,
+        "models": models,
+        "feature_names": X_train.columns.tolist(),
+        "label_mapping": dict(RIPENESS_LABELS),
+        "preprocess_config": dict(PREPROCESS_CONFIG),
+        "seed": SEED,
+        "cv_grouping": "dataset.group_id (직접 촬영: 개체+날짜)",
+        "train_count": len(train_samples), "test_count": len(test_samples),
+        "train_dataset_id": sample_id(pd.DataFrame(train_samples)),
+        "test_dataset_id": sample_id(pd.DataFrame(test_samples)) if test_samples else None,
+    }
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-    comparison.to_csv(
-        OUTPUT_DIR / "model_comparison.csv",
-        index=False,
-        encoding="utf-8-sig",
-    )
-
     save_split(train_samples, "train")
     save_split(test_samples, "test")
-
-    # 행 순서는 train_samples.csv와 동일합니다.
-    X_train.to_csv(
-        OUTPUT_DIR / "train_features.csv",
-        index=False,
-        encoding="utf-8-sig",
-    )
-
-    model_path = MODEL_DIR / "ripeness_model.joblib"
-
-    # 스케일러와 분류기를 함께 저장합니다.
-    # 예측할 때 feature_names 순서로 특징을 정렬해야 합니다.
-    joblib.dump(
-        {
-            "model": best_model,
-            "model_name": best_name,
-            "feature_names": X_train.columns.tolist(),
-            "label_mapping": dict(RIPENESS_LABELS),
-            "preprocess_config": dict(PREPROCESS_CONFIG),
-            "seed": SEED,
-            "cv_grouping": "dataset.group_id (직접 촬영: 개체+날짜)",
-            "train_count": len(train_samples),
-            "test_count": len(test_samples),
-            "cv_macro_f1": float(
-                comparison.loc[0, "cv_macro_f1_mean"]
-            ),
-        },
-        model_path,
-    )
-
-    history_run = record_training(comparison, train_samples, OUTPUT_DIR)
-    print(f"\n이번 학습 기록: {history_run}")
-    print(f"누적 학습 CSV: {OUTPUT_DIR / 'training_history.csv'}")
-    print(f"학습 비교 그래프: {OUTPUT_DIR / 'training_history.svg'}")
-    print("\n모델 비교 결과")
-    print(comparison.to_string(index=False))
-    print(f"\n선택한 모델: {best_name}")
-    print(f"저장 위치: {model_path}")
-    print(f"분할·비교 결과: {OUTPUT_DIR}")
-
-    if test_samples:
-        print(
-            "\n최종 테스트는 evaluate.py에서 "
-            "test_samples.csv로 평가하세요."
-        )
-    else:
-        print(
-            "\n현재 점수는 Train 내부 교차검증 결과이며 "
-            "최종 테스트 성능은 아닙니다."
-        )
-        print(
-            "새 이미지를 test로 지정한 뒤 "
-            "분할 목록을 갱신하고 평가하세요."
-        )
-
-    return best_model, comparison
+    X_train.to_csv(OUTPUT_DIR / "train_features.csv", index=False, encoding="utf-8-sig")
+    combined = []
+    for fruit, comparison in comparisons.items():
+        fruit_samples = [s for s in train_samples if s["fruit"] == fruit]
+        root = OUTPUT_DIR / fruit
+        root.mkdir(parents=True, exist_ok=True)
+        comparison.to_csv(root / "model_comparison.csv", index=False, encoding="utf-8-sig")
+        record_training(comparison, fruit_samples, root)
+        combined.append(comparison.assign(fruit=fruit, selected=comparison["model"].eq(models[fruit]["model_name"])))
+    comparison = pd.concat(combined, ignore_index=True)
+    comparison.to_csv(OUTPUT_DIR / "model_comparison.csv", index=False, encoding="utf-8-sig")
+    # 기존 통합 모델은 보존하고 과일별 모델 묶음을 별도 경로에 저장합니다.
+    temporary = MODEL_PATH.with_suffix(".tmp")
+    joblib.dump(bundle, temporary)
+    temporary.replace(MODEL_PATH)
+    print(f"\n과일별 모델 저장: {MODEL_PATH}")
+    print(f"비교 결과: {OUTPUT_DIR}")
+    print("최종 Test 평가는 python -m src.evaluate 로 실행하세요." if test_samples
+          else "Test 0장: 현재 점수는 학습 내부 교차검증 결과입니다.")
+    return models, comparison
 
 # main.py 와 연결 
 
