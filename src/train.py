@@ -31,9 +31,11 @@ from sklearn.model_selection import (
     StratifiedGroupKFold,
     cross_val_score,
 )
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
 
 from src.dataset import (
     RIPENESS_LABELS,
@@ -155,7 +157,11 @@ def build_feature_table(samples, feature_names=None):
 
 
 def get_models():
-    """비교할 기본 모델을 만듭니다."""
+    """동일한 그룹 교차검증으로 비교할 숙도 분류 모델 5개를 만듭니다.
+
+    KNN과 DT 설정은 초기 비교용이며 최적화된 값이 아닙니다.
+    스케일러는 Pipeline 안에서 각 fold의 학습 데이터에만 맞춥니다.
+    """
     return {
         "logistic_regression": Pipeline([
             ("scaler", StandardScaler()),
@@ -191,6 +197,29 @@ def get_models():
                     class_weight="balanced",
                     random_state=SEED,
                     n_jobs=-1,
+                ),
+            ),
+        ]),
+
+        "knn": Pipeline([
+            ("scaler", StandardScaler()),
+            (
+                "classifier",
+                KNeighborsClassifier(
+                    n_neighbors=5,
+                    weights="uniform",
+                ),
+            ),
+        ]),
+
+        "decision_tree": Pipeline([
+            (
+                "classifier",
+                DecisionTreeClassifier(
+                    max_depth=5,
+                    min_samples_leaf=2,
+                    class_weight="balanced",
+                    random_state=SEED,
                 ),
             ),
         ]),
