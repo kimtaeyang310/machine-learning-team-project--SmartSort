@@ -19,11 +19,11 @@ from sklearn.metrics import (
 
 from src.preprocessing import preprocess
 from src.feature_extraction import extract_features
+from src.model_bundle import MODEL_PATH, TRAINING_DIR, validate_bundle, select_model
 from src.performance_history import run_time, sample_id, rebuild_evaluation_history
 
-MODEL_PATH = PROJECT_ROOT / "models" / "ripeness_model.joblib"
-TRAIN_CSV = PROJECT_ROOT / "outputs" / "training" / "train_samples.csv"
-TEST_CSV = PROJECT_ROOT / "outputs" / "training" / "test_samples.csv"
+TRAIN_CSV = TRAINING_DIR / "train_samples.csv"
+TEST_CSV = TRAINING_DIR / "test_samples.csv"
 OUTPUT_DIR = PROJECT_ROOT / "outputs" / "evaluation"
 RAW_DIR = PROJECT_ROOT / "data" / "raw"
 
@@ -40,9 +40,7 @@ def load_inputs(model_path, train_csv, test_csv):
                 f"필요한 파일이 없습니다: {path}\ntrain.py를 먼저 완료하세요."
             )
     bundle = joblib.load(model_path)
-    required = {"model", "feature_names", "label_mapping", "preprocess_config"}
-    if not isinstance(bundle, dict) or not required.issubset(bundle):
-        raise ValueError("train.py에서 저장한 모델 형식과 다릅니다.")
+    validate_bundle(bundle)
 
     train = pd.read_csv(train_csv, encoding="utf-8-sig", keep_default_na=False)
     test = pd.read_csv(test_csv, encoding="utf-8-sig", keep_default_na=False)
@@ -66,6 +64,13 @@ def load_inputs(model_path, train_csv, test_csv):
         count = bundle.get(f"{name}_count")
         if count is not None and count != len(frame):
             raise ValueError("모델과 분할 목록의 사진 수가 다릅니다. 같은 학습 실행의 파일을 사용하세요.")
+
+    for name, frame in (("train", train), ("test", test)):
+        expected_id = bundle.get(f"{name}_dataset_id")
+        if expected_id is not None and sample_id(frame) != expected_id:
+            raise ValueError(f"{name} 목록이 학습 당시와 다릅니다.")
+        if "models" in bundle and not set(frame["fruit"]).issubset(bundle["models"]):
+            raise ValueError(f"{name} 목록에 모델이 없는 과일이 있습니다.")
 
     for column in ("group_id", "image_path"):
         if set(train[column]) & set(test[column]):
@@ -149,12 +154,25 @@ def evaluate(
     # 성공한 평가만 하나의 누적 CSV에 저장합니다.
     started_at = run_time()
     run_dir = Path(output_root)
-    print(f"평가 모델: {bundle.get('model_name', 'unknown')}")
+    print(f"평가 모델: {bundle.get('model_name', '과일별 모델')}")
     print(f"평가 대상: {len(test)}장 / 과일: {', '.join(sorted(test['fruit'].unique()))}")
 
     X = extract_test_features(test, bundle, run_dir)
     # 저장된 Pipeline이 학습 때의 스케일러를 그대로 적용합니다.
-    predictions = np.asarray(bundle["model"].predict(X))
+    if "models" in bundle:
+        predictions = np.empty(len(test), dtype=np.int64)
+        fruit_values = test["fruit"].to_numpy()
+        for fruit in sorted(set(fruit_values)):
+            positions = np.flatnonzero(fruit_values == fruit)
+            model, model_name = select_model(bundle, fruit)
+            values = np.asarray(model.predict(X.iloc[positions]))
+            if values.shape != (len(positions),) or not set(values).issubset(bundle["label_mapping"].values()):
+                raise ValueError(f"{fruit} 모델의 예측 결과가 올바르지 않습니다.")
+            predictions[positions] = values
+            print(f"[{fruit}] 평가 모델: {model_name}")
+    else:
+        # 명시적으로 전달한 과거 통합 모델도 평가할 수 있습니다.
+        predictions = np.asarray(bundle["model"].predict(X))
     label_mapping = bundle["label_mapping"]
     labels = sorted(label_mapping.values())
     inverse = {value: name for name, value in label_mapping.items()}

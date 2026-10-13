@@ -170,8 +170,8 @@ tomato,T08,2026-10-08,overripe,T08_20261008,test
 tomato,T09,2026-10-08,overripe,T09_20261008,test
 tomato,T10,2026-10-08,ripe,T10_20261008,test
 tomato,T11,2026-10-12,unripe,T11_20261012,train
-tomato,T12,2026-10-12,unripe,T12_20261012,test
-tomato,T13,2026-10-12,unripe,T13_20261012,test
-tomato,T14,2026-10-12,unripe,T14_20261012,test
+tomato,T12,2026-10-12,unripe,T12_20261012,train
+tomato,T13,2026-10-12,unripe,T13_20261012,train
+tomato,T14,2026-10-12,unripe,T14_20261012,train
 tomato,T15,2026-10-12,unripe,T15_20261012,test
 tomato,T16,2026-10-12,unripe,T16_20261012,test

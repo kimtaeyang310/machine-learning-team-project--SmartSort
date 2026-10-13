@@ -4,7 +4,7 @@
 """SmartSort - 메인 실행 프로그램.
 
 실행:
-    python -m src.main
+    python main.py
 """
 
 from pathlib import Path
@@ -52,7 +52,9 @@ def main():
             print("이미지 경로를 입력하지 않았습니다.")
             return
 
-        predict(image_path)
+        fruit = input("과일 종류 (banana=바나나 / mandarin=귤 / tomato=토마토): ").strip().lower()
+        fruit = {"바나나": "banana", "귤": "mandarin", "토마토": "tomato"}.get(fruit, fruit)
+        predict(image_path, fruit=fruit)
 
     elif choice == "0":
         print("프로그램을 종료합니다.")
