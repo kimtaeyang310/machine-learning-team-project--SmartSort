@@ -25,7 +25,7 @@ def main():
     print("=" * 50)
     print("1. 모델 학습")
     print("2. 모델 평가")
-    print("3. 새 이미지 숙도 예측")
+    print("3. 폴더 전체 숙도 예측 및 시간 측정")
     print("0. 종료")
     print("=" * 50)
 
@@ -42,19 +42,11 @@ def main():
         evaluate()
 
     elif choice == "3":
-        from src.predict import predict
+        from src.predict import predict_folder, PREDICT_DIR
 
-        image_path = input(
-            "예측할 이미지 경로를 입력하세요: "
-        ).strip().strip('"')
+        folder = input("예측 폴더 경로 (Enter: data/predict_list): ").strip().strip('"')
 
-        if not image_path:
-            print("이미지 경로를 입력하지 않았습니다.")
-            return
-
-        fruit = input("과일 종류 (banana=바나나 / mandarin=귤 / tomato=토마토): ").strip().lower()
-        fruit = {"바나나": "banana", "귤": "mandarin", "토마토": "tomato"}.get(fruit, fruit)
-        predict(image_path, fruit=fruit)
+        predict_folder(folder or PREDICT_DIR)
 
     elif choice == "0":
         print("프로그램을 종료합니다.")
