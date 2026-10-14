@@ -9,6 +9,7 @@ from pathlib import Path
 import hashlib
 import json
 import sys
+from time import perf_counter
 
 import cv2
 import numpy as np
@@ -301,6 +302,8 @@ def create_fruit_mask(
     min_saturation=DEFAULT_MIN_SATURATION,
     seed=42,
     debug=None,
+    timings=None,
+    kmeans_attempts=3,
 ):
     """K-means 후보 영역에서 낮은 채도의 배경·그림자를 제외합니다."""
     debug = {} if debug is None else debug
@@ -315,6 +318,9 @@ def create_fruit_mask(
         raise ValueError(
             "min_saturation은 0부터 255 사이여야 합니다."
         )
+
+    if not isinstance(kmeans_attempts, int) or kmeans_attempts < 1:
+        raise ValueError("kmeans_attempts는 1 이상의 정수여야 합니다.")
 
     height, width = image.shape[:2]
 
@@ -347,14 +353,18 @@ def create_fruit_mask(
 
     debug["stage"] = "kmeans"
 
+    kmeans_started = perf_counter()
     _, labels, _ = cv2.kmeans(
         pixels,
         k,
         None,
         criteria,
-        3,
+        kmeans_attempts,
         cv2.KMEANS_PP_CENTERS,
     )
+
+    if timings is not None:
+        timings["kmeans_ms"] = (perf_counter() - kmeans_started) * 1000
 
     label_map = labels.reshape(height, width)
 
@@ -576,9 +586,16 @@ def preprocess(
     denoise=DEFAULT_DENOISE,
     save_failed=True,
     failed_dir=FAILED_DIR,
+    timings=None,
+    kmeans_attempts=3,
+    include_preview=True,
 ):
-    """이미지 한 장을 처리합니다. 실패하면 진단 저장 후 오류를 냅니다."""
+    """이미지 한 장 처리. include_preview=False이면 표시용 두 배열은 None입니다."""
     debug = {"stage": "read_image"}
+    timings = {} if timings is None else timings
+    timings.clear()
+    timings["kmeans_ms"] = 0.0
+    started = perf_counter()
 
     settings = {
         "size": size,
@@ -586,10 +603,13 @@ def preprocess(
         "seed": seed,
         "min_saturation": min_saturation,
         "denoise": denoise,
+        "kmeans_attempts": kmeans_attempts,
     }
 
     try:
         original = read_image(image_path)
+        mark = perf_counter()
+        timings["read_ms"] = (mark - started) * 1000
 
         debug["stage"] = "resize_and_denoise"
 
@@ -599,14 +619,20 @@ def preprocess(
             enabled=denoise,
         )
 
-        resized_original = resize_image(
-            original, size=size
-        )
+        now = perf_counter()
+        timings["denoise_ms"] = (now - mark) * 1000
+        mark = now
+
+        resized_original = resize_image(original, size=size) if include_preview else None
         resized_cleaned = resize_image(
             cleaned, size=size
         )
 
-        debug["original"] = resized_original
+        now = perf_counter()
+        timings["resize_ms"] = (now - mark) * 1000
+        mark = now
+        if include_preview:
+            debug["original"] = resized_original
         debug["processed"] = resized_cleaned
         debug["stage"] = "load_manual_mask"
 
@@ -616,6 +642,9 @@ def preprocess(
             target_shape=resized_cleaned.shape,
         )
 
+        now = perf_counter()
+        timings["manual_mask_ms"] = (now - mark) * 1000
+        mark = now
         if mask is None:
             # 수동 마스크가 없는 사진은 기존 자동 검출을 사용합니다.
             mask = create_fruit_mask(
@@ -624,6 +653,8 @@ def preprocess(
                 min_saturation=min_saturation,
                 seed=seed,
                 debug=debug,
+                timings=timings,
+                kmeans_attempts=kmeans_attempts,
             )
         else:
             debug["mask"] = mask.copy()
@@ -635,6 +666,9 @@ def preprocess(
         
         
 
+        now = perf_counter()
+        timings["mask_other_ms"] = max(0.0, (now - mark) * 1000 - timings["kmeans_ms"])
+        mark = now
         debug["stage"] = "padding_and_hsv"
 
         # 여백 추가 전 사진을 기준으로 계산합니다.
@@ -646,23 +680,19 @@ def preprocess(
             size=size,
         )
 
-        original_image, _ = pad_to_square(
-            resized_original,
-            mask,
-            size=size,
-        )
+        original_image = None
+        if include_preview:
+            original_image, _ = pad_to_square(resized_original, mask, size=size)
 
         hsv = cv2.cvtColor(
             image,
             cv2.COLOR_BGR2HSV,
         )
 
-        fruit_image = cv2.bitwise_and(
-            image,
-            image,
-            mask=padded_mask,
-        )
+        fruit_image = (cv2.bitwise_and(image, image, mask=padded_mask)
+                       if include_preview else None)
 
+        timings["finish_ms"] = (perf_counter() - mark) * 1000
         # 기존 반환 형식을 유지합니다.
         return {
             "image_path": str(image_path),
@@ -679,6 +709,9 @@ def preprocess(
     except (ValueError, OSError, cv2.error) as error:
         if save_failed:
             try:
+                # 정상 예측에서는 생략한 표시용 원본도 실패 진단에는 남깁니다.
+                if "original" not in debug and "original" in locals():
+                    debug["original"] = resize_image(original, size=size)
                 folder = save_failure_debug(
                     image_path,
                     error,

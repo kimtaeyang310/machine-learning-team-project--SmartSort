@@ -1,17 +1,19 @@
 #6. predict : 새 사진에 같은 처리 과정을 적용해 예측
 
-"""새로운 이미지 1장의 숙도를 예측.
+"""폴더의 이미지를 순차 예측하고 처리 시간을 측정.
 
 실행:
-    python src/predict.py "data/raw/새사진.jpg" --fruit tomato
+    python src/predict.py
 또는
-    python -m src.predict "data/raw/새사진.jpg" --fruit tomato
+    python -m src.predict
 
 학습 때 저장한 전처리 설정과 특징 순서를 그대로 사용합니다.
 """
 
 from pathlib import Path
 import sys
+import re
+from time import perf_counter
 
 
 # ============================================================
@@ -33,6 +35,8 @@ import joblib
 import numpy as np
 import pandas as pd
 
+from sklearn.ensemble import RandomForestClassifier
+
 from src.preprocessing import preprocess
 from src.feature_extraction import extract_features
 from src.model_bundle import MODEL_PATH, FRUITS, validate_bundle, select_model
@@ -43,6 +47,8 @@ from src.model_bundle import MODEL_PATH, FRUITS, validate_bundle, select_model
 # ============================================================
 
 RAW_DIR = PROJECT_ROOT / "data" / "raw"
+PREDICT_DIR = PROJECT_ROOT / "data" / "predict_list"
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
 
 
 # ============================================================
@@ -60,7 +66,21 @@ def load_model(model_path):
 
     bundle = joblib.load(model_path)
 
-    return validate_bundle(bundle)
+    validate_bundle(bundle)
+    # 한 장씩 처리할 때 RF의 작업 분배 비용을 피합니다. 저장 모델은 변경하지 않습니다.
+    entries = bundle["models"].values() if "models" in bundle else [bundle]
+    for entry in entries:
+        configure_prediction_jobs(entry["model"])
+    return bundle
+
+
+def configure_prediction_jobs(model, n_jobs=1):
+    """Random Forest에만 적용하며 학습 설정과 다른 모델은 건드리지 않습니다."""
+    if isinstance(model, RandomForestClassifier):
+        model.set_params(n_jobs=n_jobs)
+    elif hasattr(model, "named_steps"):
+        for step in model.named_steps.values():
+            configure_prediction_jobs(step, n_jobs)
 
 
 # ============================================================
@@ -90,11 +110,13 @@ def resolve_image_path(image_path):
 # 6. 이미지 → 특징 벡터
 # ============================================================
 
-def extract_image_features(image_path, bundle):
+def extract_image_features(image_path, bundle, timings=None):
     """학습 때와 동일한 전처리와 특징 추출을 수행합니다."""
 
     feature_names = bundle["feature_names"]
-    preprocess_config = bundle["preprocess_config"]
+    preprocess_config = dict(bundle["preprocess_config"])
+    # 특징 추출은 HSV·마스크만 사용하므로 표시용 이미지 두 개는 만들지 않습니다.
+    preprocess_config.setdefault("include_preview", False)
 
     if not feature_names:
         raise ValueError("저장된 특징 이름이 없습니다.")
@@ -105,6 +127,7 @@ def extract_image_features(image_path, bundle):
 
     processed = preprocess(
         image_path,
+        timings=timings,
         **preprocess_config,
     )
 
@@ -157,149 +180,144 @@ def extract_image_features(image_path, bundle):
 # 7. 숙도 예측
 # ============================================================
 
-def predict(image_path, model_path=MODEL_PATH, *, fruit=None):
-    """새 이미지 한 장의 숙도를 예측합니다."""
-
-    # --------------------------------------------------------
-    # 모델 및 설정 불러오기
-    # --------------------------------------------------------
-
-    bundle = load_model(model_path)
-
-    model, model_name = select_model(bundle, fruit)
-    label_mapping = bundle["label_mapping"]
-
-    # 숫자 라벨 → 숙도 이름
-    inverse_mapping = {
-        value: name
-        for name, value in label_mapping.items()
-    }
-
-    labels = sorted(label_mapping.values())
-    label_names = [
-        inverse_mapping[label]
-        for label in labels
-    ]
-
-    # --------------------------------------------------------
-    # 이미지 경로 확인
-    # --------------------------------------------------------
-
-    image_path = resolve_image_path(image_path)
-
-    # --------------------------------------------------------
-    # 특징 추출
-    # --------------------------------------------------------
-
-    X = extract_image_features(
-        image_path,
-        bundle,
-    )
-
-    # --------------------------------------------------------
-    # 숙도 예측
-    # --------------------------------------------------------
-
-    predicted_label = int(
-        np.asarray(model.predict(X))[0]
-    )
-
-    if predicted_label not in inverse_mapping:
-        raise ValueError(
-            f"모델이 알 수 없는 라벨을 예측했습니다: "
-            f"{predicted_label}"
-        )
-
-    predicted_name = inverse_mapping[predicted_label]
-
-    # --------------------------------------------------------
-    # 결과 출력
-    # --------------------------------------------------------
-
-    print("\n" + "=" * 50)
-    print("SmartSort 숙도 예측")
-    print("=" * 50)
-
-    print(f"이미지 : {image_path.name}")
-    print(f"과일   : {fruit}")
-    print(f"모델   : {model_name}")
-    print(f"예측   : {predicted_name}")
-
-    # --------------------------------------------------------
-    # 예측 확률
-    # --------------------------------------------------------
-
+def predict_loaded(image_path, bundle, model):
+    """모델 재로딩 없이 한 장 처리. 파일 읽기부터 확률 계산까지 측정합니다."""
+    started = perf_counter()
+    timings = {}
+    X = extract_image_features(image_path, bundle, timings=timings)
+    prepared = perf_counter()
+    inverse = {value: name for name, value in bundle["label_mapping"].items()}
+    probabilities = None
     if hasattr(model, "predict_proba"):
-        probabilities = model.predict_proba(X)[0]
-
-        # 모델이 실제로 가진 class 순서를 사용합니다.
-        if hasattr(model, "classes_"):
-            model_classes = model.classes_
-        elif hasattr(model, "named_steps"):
-            # Pipeline의 마지막 분류기에서 classes_ 가져오기
-            classifier = model.named_steps.get("classifier")
-
-            if classifier is not None and hasattr(
-                classifier,
-                "classes_",
-            ):
-                model_classes = classifier.classes_
-            else:
-                model_classes = labels
-        else:
-            model_classes = labels
-
-        print("\n예측 확률")
-
-        probability_dict = {}
-
-        for class_label, probability in zip(
-            model_classes,
-            probabilities,
-        ):
-            class_label = int(class_label)
-
-            if class_label in inverse_mapping:
-                name = inverse_mapping[class_label]
-                probability_dict[name] = float(probability)
-
-        # 항상 unripe → ripe → overripe 순서로 출력
-        for name in label_names:
-            probability = probability_dict.get(
-                name,
-                0.0,
-            )
-
-            print(
-                f"  {name:<9}: "
-                f"{probability * 100:6.2f}%"
-            )
-
+        # RF·LR·KNN·DT는 확률의 최댓값으로 예측합니다.
+        # predict()까지 호출하면 같은 확률 계산이 중복됩니다.
+        values = np.asarray(model.predict_proba(X))[0]
+        classes = np.asarray(model.classes_)
+        if values.shape != classes.shape or not np.isfinite(values).all():
+            raise ValueError("모델의 예측 확률 형식이 올바르지 않습니다.")
+        if not set(classes).issubset(inverse):
+            raise ValueError("모델 확률에 알 수 없는 라벨이 있습니다.")
+        label = int(classes[np.argmax(values)])
+        probabilities = {
+            inverse[int(c)]: float(v)
+            for c, v in zip(classes, values)
+        }
     else:
-        print(
-            "\n이 모델은 predict_proba()를 지원하지 않아 "
-            "예측 확률을 표시할 수 없습니다."
-        )
+        # 현재 SVM은 확률을 지원하지 않으므로 기존 predict() 사용.
+        label = int(np.asarray(model.predict(X))[0])
+    if label not in inverse:
+        raise ValueError(f"알 수 없는 예측 라벨: {label}")
+    finished = perf_counter()
+    return {"image_path": str(image_path), "ripeness": inverse[label],
+            "probabilities": probabilities,
+            "preprocessing_ms": timings,
+            "feature_ms": (prepared - started) * 1000,
+            "prediction_ms": (finished - prepared) * 1000,
+            "total_ms": (finished - started) * 1000}
 
-    print("=" * 50)
 
-    return predicted_name
+def predict(image_path, model_path=MODEL_PATH, *, fruit=None):
+    """기존 단일 이미지 호출과의 호환성을 유지합니다."""
+    bundle = load_model(model_path)
+    model, name = select_model(bundle, fruit)
+    result = predict_loaded(resolve_image_path(image_path), bundle, model)
+    print(f"{fruit} / {name}: {result['ripeness']} ({result['total_ms']:.2f} ms)")
+    return result["ripeness"]
 
 
-# ============================================================
-# 8. 프로그램 실행
-# ============================================================
+def infer_fruit(image_path):
+    """파일명의 과일 토큰 또는 기존 바나나 데이터셋 형식만 사용합니다."""
+    stem = Path(image_path).stem.lower()
+    found = {fruit for fruit in FRUITS
+             if re.search(r"(?:^|[^a-z])" + fruit + r"(?:$|[^a-z])", stem)}
+    # 기존 바나나 데이터셋 이름. 숙도 정답에는 사용하지 않습니다.
+    if re.fullmatch(r"(?:overripe|ripe|semi_ripe)_\d+_(?:jpg|jpeg|png)\.rf\.[a-f0-9]+(?:_copy\d+)?", stem):
+        found.add("banana")
+    if len(found) != 1:
+        raise ValueError("파일명에서 과일 종류를 구분할 수 없습니다. banana / mandarin / tomato 중 하나를 넣으세요.")
+    return found.pop()
+
+
+def predict_folder(folder_path=PREDICT_DIR, model_path=MODEL_PATH):
+    """폴더 바로 아래 이미지 전체를 처리합니다. 실패 파일도 시간과 이유를 기록합니다."""
+    folder = Path(folder_path)
+    if not folder.is_absolute():
+        folder = PROJECT_ROOT / folder
+    folder = folder.resolve()
+    if not folder.is_dir():
+        raise ValueError(f"예측 폴더가 없습니다: {folder}")
+    paths = sorted(p for p in folder.iterdir()
+                   if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS)
+    if not paths:
+        raise ValueError(f"지원하는 이미지가 없습니다: {folder}")
+    load_started = perf_counter()
+    bundle = load_model(model_path)
+    load_ms = (perf_counter() - load_started) * 1000
+    print(f"\n폴더: {folder} / 사진: {len(paths)}장")
+    print("파일명으로 과일을 구분해 해당 모델을 적용합니다.")
+    print(f"모델 로딩: {load_ms:.2f} ms (이미지 처리 시간과 별도)")
+    results = []
+    batch_started = perf_counter()
+    for index, path in enumerate(paths, 1):
+        started = perf_counter()
+        try:
+            fruit = infer_fruit(path)
+            model, name = select_model(bundle, fruit)
+            result = predict_loaded(path, bundle, model)
+            result.update(status="ok", error="", fruit=fruit, model=name)
+            result["total_ms"] = (perf_counter() - started) * 1000
+        except Exception as error:
+            result = {"image_path": str(path), "status": "failed", "error": str(error),
+                      "total_ms": (perf_counter() - started) * 1000}
+        results.append(result)
+        if result["status"] == "ok":
+            probability = result["probabilities"]
+            confidence = f" / 확률 {probability[result['ripeness']]:.1%}" if probability else ""
+            print(f"[{index}/{len(paths)}] {path.name} → {result['fruit']} / {result['model']} / {result['ripeness']}{confidence}"
+                  f" | 준비 {result['feature_ms']:.2f} + 예측 {result['prediction_ms']:.2f}"
+                  f" | 전체 {result['total_ms']:.2f} ms")
+        else:
+            print(f"[{index}/{len(paths)}] {path.name} → 실패 ({result['total_ms']:.2f} ms): {result['error']}")
+    batch_ms = (perf_counter() - batch_started) * 1000
+    successful = [r for r in results if r["status"] == "ok"]
+    times = np.asarray([r["total_ms"] for r in successful])
+    total_processing_ms = sum(r["total_ms"] for r in results)
+    summary = {"count": len(results), "success_count": len(successful),
+               "failure_count": len(results) - len(successful), "model_load_ms": load_ms,
+               "processing_ms": total_processing_ms, "batch_ms": batch_ms,
+               "mean_ms": float(times.mean()) if len(times) else None,
+               "p95_ms": float(np.percentile(times, 95)) if len(times) else None,
+               "fps": len(successful) * 1000 / total_processing_ms if total_processing_ms else 0.0}
+    stages = ("read_ms", "denoise_ms", "resize_ms", "manual_mask_ms", "kmeans_ms", "mask_other_ms", "finish_ms")
+    measured = [r for r in successful if r.get("preprocessing_ms")]
+    summary["preprocessing_mean_ms"] = {
+        stage: float(np.mean([r["preprocessing_ms"][stage] for r in measured]))
+        for stage in stages
+    } if measured else {}
+    if measured:
+        labels = ("읽기", "노이즈 제거", "크기 조정", "수동 마스크 확인", "K-means", "기타 영역 분리", "마무리")
+        print("\n전처리 단계별 평균(ms): " + " / ".join(
+            f"{label} {summary['preprocessing_mean_ms'][stage]:.2f}"
+            for label, stage in zip(labels, stages)))
+    print(f"\n완료: 성공 {summary['success_count']} / 실패 {summary['failure_count']}")
+    print(f"전체 순차 실행: {batch_ms / 1000:.3f}초 (결과 출력 포함, 모델 로딩 제외)")
+    if len(times):
+        print(f"성공 사진 평균: {summary['mean_ms']:.2f} ms / P95: {summary['p95_ms']:.2f} ms")
+    print(f"처리 FPS: {summary['fps']:.2f} (성공 장수 / 실패 포함 처리 시간, 결과 출력 제외)")
+    goal = "판정 보류: 처리 실패 있음" if summary['failure_count'] else ("달성" if summary['fps'] >= 25 else "미달성")
+    print(f"25 FPS 목표: {goal}")
+    print("첫 이미지 포함 측정이며 워밍업은 하지 않습니다. 준비 시간은 이미지 읽기·전처리·영역 분리·특징 구성을 포함합니다.")
+    return results, summary
+
 
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="과일 종류를 지정해 숙도를 예측합니다.")
-    parser.add_argument("image_path", help="예측할 이미지 경로")
-    parser.add_argument("--fruit", required=True, choices=FRUITS,
-                        help="banana=바나나, mandarin=귤, tomato=토마토")
+    parser = argparse.ArgumentParser(description="폴더 전체 숙도 예측 및 시간 측정")
+    parser.add_argument("folder", nargs="?", default=str(PREDICT_DIR), help="기본: data/predict_list")
     args = parser.parse_args()
     try:
-        predict(args.image_path, fruit=args.fruit)
+        predict_folder(args.folder)
     except (ValueError, OSError, RuntimeError) as error:
         print(f"\n예측 중단:\n{error}")
         raise SystemExit(1)
