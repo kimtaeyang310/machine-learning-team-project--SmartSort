@@ -19,6 +19,7 @@ from sklearn.metrics import (
 
 from src.preprocessing import preprocess
 from src.feature_extraction import extract_features
+from src.feature_cache import FeatureCache
 from src.model_bundle import MODEL_PATH, TRAINING_DIR, validate_bundle, select_model
 from src.performance_history import run_time, sample_id, rebuild_evaluation_history
 
@@ -84,13 +85,13 @@ def extract_test_features(test, bundle, output_dir):
     if not names or len(names) != len(set(names)):
         raise ValueError("모델의 특징 이름이 비어 있거나 중복되었습니다.")
     rows, failures = [], []
+    cache = FeatureCache(bundle["preprocess_config"])
     raw_root = RAW_DIR.resolve()
     for index, sample in enumerate(test.to_dict("records"), start=1):
         try:
             path = (raw_root / sample["image_path"]).resolve()
             path.relative_to(raw_root)
-            processed = preprocess(path, **bundle["preprocess_config"])
-            features = extract_features(processed)
+            features = cache.get(path, preprocess, extract_features)
             if not isinstance(features, dict) or set(features) != set(names):
                 raise ValueError("학습 당시와 특징 이름이 다릅니다.")
             values = np.asarray([features[name] for name in names], dtype=float)
@@ -114,6 +115,7 @@ def extract_test_features(test, bundle, output_dir):
             f"Test {len(test)}장 중 {len(failures)}장 처리 실패.\n"
             "일부 이미지만으로 점수를 계산하지 않았습니다. 원인을 확인하세요."
         )
+    cache.report()
     return pd.DataFrame(rows, columns=names)
 
 
