@@ -44,6 +44,7 @@ from src.dataset import (
     split_dataset,
 )
 from src.preprocessing import preprocess
+from src.feature_cache import FeatureCache
 from src.performance_history import record_training, sample_id
 from src.model_bundle import FRUITS, MODEL_PATH, TRAINING_DIR
 
@@ -88,6 +89,7 @@ def build_feature_table(samples, feature_names=None):
     from src.feature_extraction import extract_features
 
     rows = []
+    cache = FeatureCache(PREPROCESS_CONFIG)
 
     expected_names = (
         list(feature_names) if feature_names is not None else None
@@ -96,13 +98,7 @@ def build_feature_table(samples, feature_names=None):
     for index, sample in enumerate(samples, start=1):
         try:
             # 1. 이미지 전처리
-            processed = preprocess(
-                sample["path"],
-                **PREPROCESS_CONFIG,
-            )
-
-            # 2. 완성된 특징 추출 함수 호출
-            features = extract_features(processed)
+            features = cache.get(sample["path"], preprocess, extract_features)
 
             # 3. 반환 형식 검사
             if not isinstance(features, dict) or not features:
@@ -154,6 +150,7 @@ def build_feature_table(samples, feature_names=None):
     if not rows:
         raise ValueError("특징을 추출할 이미지가 없습니다.")
 
+    cache.report()
     return pd.DataFrame(rows, columns=expected_names)
 
 
