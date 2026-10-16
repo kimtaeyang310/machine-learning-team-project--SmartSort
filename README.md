@@ -1,5 +1,11 @@
 # 🍎 SmartSort
 
+## 출처
+
+- [Mendeley Data 데이터셋 (버전 2)](https://data.mendeley.com/datasets/ptfscwtnyz/2)
+- [Kaggle — Fruit Ripeness: Unripe, Ripe and Rotten](https://www.kaggle.com/datasets/leftin/fruit-ripeness-unripe-ripe-and-rotten)
+- [Kaggle — Riped and Unriped Tomato Dataset](https://www.kaggle.com/datasets/sumn2u/riped-and-unriped-tomato-dataset)
+
 ### 특징값 재사용
 
 `python -m src.train`과 `python -m src.evaluate`는 이미지별 특징을
