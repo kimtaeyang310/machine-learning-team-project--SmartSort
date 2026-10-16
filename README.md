@@ -23,11 +23,43 @@
 농산물의 **숙도(Unripe / Ripe / Overripe)** 를 자동으로 판별하는
 머신러닝 기반 숙도 분류 프로젝트입니다. 데이터 확보 범위를 고려하여 품질 분류는 수행하지 않습니다.
 
-딥러닝 모델을 사용하지 않고,
+기본 모델은 다음 구성을 사용합니다. 별도 비교 실험으로 YOLOv8n-cls 딥러닝 분류 모델도 지원합니다.
 
 **OpenCV 기반 이미지 처리 + Feature Engineering + Scikit-learn 기반 머신러닝 모델**
 
 을 활용하여 농산물의 색상 및 표면 특징을 분석합니다.
+
+### YOLOv8n-cls 통합 학습
+
+`python -m src.train` 또는 `main.py`의 **1번**에서 과일별 기존 5개 모델과 YOLOv8n-cls를 함께 비교합니다.
+현재 이미지·라벨에서 Train/Test를 구성하므로 기존 학습을 먼저 실행할 필요가 없습니다.
+6개 후보는 동일한 3-fold 그룹 분할로 평가하며 **CV Macro F1 최고 모델**을 과일별로 선택합니다.
+YOLO가 선택되어도 기존 **2번 평가 / 3번 폴더 예측**에서 자동으로 해당 모델을 사용합니다.
+
+```powershell
+& ./.venv-yolo/Scripts/python.exe -m src.train --epochs 30 --device cpu
+& ./.venv-yolo/Scripts/python.exe -m src.evaluate
+& ./.venv-yolo/Scripts/python.exe -m src.predict
+```
+
+메뉴 실행: `& ./.venv-yolo/Scripts/python.exe main.py`
+다른 환경은 `python -m pip install -r requirements.txt`로 설치합니다.
+
+- 기본값은 CPU, 30 epochs, 이미지 크기 224, batch 16입니다. GPU는 `--device 0`을 사용합니다.
+- 기존 모델만 학습하려면 `python -m src.train --without-yolo`를 사용합니다.
+- YOLO는 원본 이미지에서 학습하며 HSV 특징·K-means 마스크를 사용하지 않습니다.
+  자동 증강·색상 증강·영역 지우기는 끕니다. 기본 분류 이미지 자르기는 적용됩니다.
+- fold마다 같은 사전학습 가중치에서 시작하여 고정 epoch의 `last.pt`로 평가합니다.
+  Test는 학습·튜닝·모델 선택에 사용하지 않습니다. 최종 Train 전체 재학습에서도 같은 epoch 수를 사용합니다.
+  최종 재학습의 내부 val 로더는 API 요구 때문에 Train을 재사용하며 그 점수는 보고하지 않습니다.
+- 비교 결과는 `outputs/training/by_fruit/model_comparison.csv`의 **18행**과 기존 과일별 학습 이력에 저장합니다.
+- 선택 모델 묶음은 `models/ripeness_by_fruit.joblib`, YOLO 체크포인트와 fold 목록은
+  `outputs/training/by_fruit/yolo_runs/실행폴더`에 저장합니다. YOLO를 사용하는 모델 묶음을 옮길 때는
+  이 체크포인트 폴더도 동일한 프로젝트 상대 경로로 함께 옮겨야 합니다.
+- YOLO의 fold 학습 9회와 최종 학습 3회가 필요합니다. 전체 학습에는 시간과 디스크 공간이 필요합니다.
+- 과거 별도 비교 실행 폴더는 `src.yolo_compare evaluate/predict --run ...`으로 계속 읽을 수 있습니다.
+  새 학습에는 기존 `src.train`을 사용하세요.
+
 
 ---
 
@@ -409,7 +441,7 @@ Fruit Mask 생성
 
 # 🤖 13. Machine Learning Models
 
-`src/train.py`에서 **바나나·귤·토마토를 분리하여 각각 다음 5개 숙도 분류 모델을 비교**합니다. 각 과일은 자기 과일의 학습 사진만 사용하고, 과일별로 최고 모델을 선택합니다.
+`src/train.py`에서 **바나나·귤·토마토를 분리하여 각각 다음 6개 숙도 분류 모델을 비교**합니다. 각 과일은 자기 과일의 학습 사진만 사용하고, 과일별로 최고 모델을 선택합니다.
 
 | 모델 | 전처리 | 주요 초기 설정 |
 |---|---|---|
@@ -418,15 +450,16 @@ Fruit Mask 생성
 | Random Forest | 별도 표준화 없음 | n_estimators=300, min_samples_leaf=2, class_weight=balanced |
 | K-Nearest Neighbors (KNN) | StandardScaler | n_neighbors=5, weights=uniform |
 | Decision Tree (DT) | 별도 표준화 없음 | max_depth=5, min_samples_leaf=2, class_weight=balanced |
+| YOLOv8n-cls | 원본 이미지 | 사전학습 가중치, 30 epochs, imgsz=224 |
 
 KNN은 특징 간 거리로 판단하므로 단위가 다른 특징을 표준화합니다. DT는 과적합을 줄이기 위해 깊이와 말단 노드의 최소 샘플 수를 제한합니다. KNN·DT 설정은 초기 비교용이며 최적화된 값이 아닙니다.
 
-- 과일별로 3-fold StratifiedGroupKFold를 구성하고, 해당 과일의 5개 후보는 동일한 특징과 분할로 비교합니다.
+- 과일별로 3-fold StratifiedGroupKFold를 구성하고, 해당 과일의 6개 후보는 동일한 분할로 비교합니다. 기존 5개 모델은 숫자 특징, YOLO는 원본 이미지를 사용합니다.
 - StandardScaler는 Pipeline 내부에서 각 fold의 학습 데이터에만 맞춥니다.
 - 과일별 교차검증 Macro F1 평균이 가장 높은 모델을 선택하고 해당 과일의 Train 전체로 재학습합니다. 바나나·귤·토마토에서 서로 다른 알고리즘이 선택될 수 있습니다.
 - Test는 모델 선택이나 튜닝에 사용하지 않으며, 최종 평가는 `src/evaluate.py`에서 수행합니다.
 - 모델별 평균·표준편차·fold별 점수는 `outputs/training/by_fruit/model_comparison.csv`에 저장됩니다.
-- 통합 비교 CSV에는 과일마다 5행씩 총 15행과 `fruit`, `selected` 열이 저장됩니다.
+- 통합 비교 CSV에는 과일마다 6행씩 총 18행과 `fruit`, `selected` 열이 저장됩니다.
 - 과일별 상세 비교·누적 학습 기록·그래프는 `outputs/training/by_fruit/banana/`, `mandarin/`, `tomato/`에 저장됩니다.
 - 기존 통합 모델과 과거 학습 결과는 보존합니다. 과일별 모델의 결과는 새로운 학습 경로에 저장됩니다.
 - 과일별 데이터에 숙도 3개가 모두 있어야 하며 각 검증 fold에도 3개 숙도가 필요합니다. 부족하면 분할 기준을 임의로 완화하지 않고 오류를 표시합니다.

@@ -159,7 +159,13 @@ def evaluate(
     print(f"평가 모델: {bundle.get('model_name', '과일별 모델')}")
     print(f"평가 대상: {len(test)}장 / 과일: {', '.join(sorted(test['fruit'].unique()))}")
 
-    X = extract_test_features(test, bundle, run_dir)
+    image_models = {fruit for fruit, entry in bundle.get("models", {}).items()
+                    if getattr(entry["model"], "input_kind", None) == "image"}
+    feature_positions = np.flatnonzero(~test.fruit.isin(image_models).to_numpy())
+    X = None
+    if len(feature_positions):
+        X = extract_test_features(test.iloc[feature_positions], bundle, run_dir)
+        X.index = feature_positions
     # 저장된 Pipeline이 학습 때의 스케일러를 그대로 적용합니다.
     if "models" in bundle:
         predictions = np.empty(len(test), dtype=np.int64)
@@ -167,7 +173,9 @@ def evaluate(
         for fruit in sorted(set(fruit_values)):
             positions = np.flatnonzero(fruit_values == fruit)
             model, model_name = select_model(bundle, fruit)
-            values = np.asarray(model.predict(X.iloc[positions]))
+            inputs = ([RAW_DIR / p for p in test.iloc[positions].image_path]
+                      if fruit in image_models else X.loc[positions])
+            values = np.asarray(model.predict(inputs))
             if values.shape != (len(positions),) or not set(values).issubset(bundle["label_mapping"].values()):
                 raise ValueError(f"{fruit} 모델의 예측 결과가 올바르지 않습니다.")
             predictions[positions] = values

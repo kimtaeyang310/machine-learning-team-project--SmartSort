@@ -4,6 +4,8 @@ data/features/cache/
 *.py[cod]
 *$py.class
 .venv/
+.venv-yolo/
+*.pt
 venv/
 ENV/
 

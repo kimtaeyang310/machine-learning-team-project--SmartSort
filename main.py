@@ -23,7 +23,7 @@ def main():
     print("=" * 50)
     print("SmartSort - 농산물 숙도 판별 시스템")
     print("=" * 50)
-    print("1. 모델 학습")
+    print("1. 모델 학습 (기존 5개 + YOLOv8n-cls)")
     print("2. 모델 평가")
     print("3. 폴더 전체 숙도 예측 및 시간 측정")
     print("0. 종료")
@@ -34,7 +34,7 @@ def main():
     if choice == "1":
         from src.train import main as train_main
 
-        train_main()
+        train_main([])
 
     elif choice == "2":
         from src.evaluate import evaluate
