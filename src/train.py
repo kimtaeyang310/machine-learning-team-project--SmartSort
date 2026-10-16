@@ -1,4 +1,4 @@
-"""SmartSort: 이미지 특징으로 숙도 분류 모델 학습·비교·저장.
+"""SmartSort: 기존 특징 기반 5개 모델과 YOLOv8n-cls 학습·비교·저장.
 
 실행 방법: 프로젝트 최상위 폴더에서
     python -m src.train
@@ -7,7 +7,7 @@
 
 CSV의 수동 split을 유지하며 Train 내부에서만 모델을 비교합니다.
 Test가 없어도 학습할 수 있습니다. 최종 평가는 evaluate.py의 역할입니다.
-완성된 extract_features()가 반환하는 숫자 특징만 학습에 사용합니다.
+기존 모델은 숫자 특징, YOLO는 동일 분할의 원본 이미지를 사용합니다.
 """
 
 from pathlib import Path
@@ -279,8 +279,8 @@ def save_split(samples, split_name):
     )
 
 
-def fit_fruit_models(X_train, train_samples):
-    """과일별 데이터만으로 5개 모델을 비교합니다. Test는 받지 않습니다."""
+def fit_fruit_models(X_train, train_samples, *, yolo_config=None, yolo_root=None):
+    """과일별 기존 모델과 선택적으로 YOLO를 비교합니다. Test는 받지 않습니다."""
     fruits = np.asarray([s["fruit"] for s in train_samples])
     if set(fruits) != set(FRUITS):
         raise ValueError(f"학습 데이터에 필요한 과일: {FRUITS}; 현재: {sorted(set(fruits))}")
@@ -316,11 +316,16 @@ def fit_fruit_models(X_train, train_samples):
                 "cv_macro_f1_std": float(scores.std()),
                 **{f"fold_{i}_macro_f1": float(v) for i, v in enumerate(scores, 1)},
             })
+        yolo_model = None
+        if yolo_config is not None:
+            from src.yolo_compare import compare_fruit
+            row, yolo_model = compare_fruit(samples, splits, yolo_root / fruit, yolo_config)
+            rows.append(row)
         comparison = pd.DataFrame(rows).sort_values(
             "cv_macro_f1_mean", ascending=False, kind="stable"
         ).reset_index(drop=True)
         name = comparison.loc[0, "model"]
-        best = clone(models[name]).fit(X, y)
+        best = yolo_model if name == "yolov8n_cls" else clone(models[name]).fit(X, y)
         bundles[fruit] = {
             "model": best, "model_name": name, "fruit": fruit,
             "train_count": len(samples),
@@ -332,8 +337,18 @@ def fit_fruit_models(X_train, train_samples):
     return bundles, comparisons
 
 
-def train():
+def train(*, include_yolo=True, epochs=30, imgsz=224, batch=16, device="cpu", weights="yolov8n-cls.pt"):
     """과일별 모델을 학습하고 하나의 모델 묶음으로 저장합니다."""
+    yolo_config, yolo_root = None, None
+    if include_yolo:
+        from datetime import datetime
+        import json
+        from src.yolo_compare import yolo_class
+        yolo_class()
+        if min(epochs, imgsz, batch) < 1:
+            raise ValueError("epochs, imgsz, batch는 양수여야 합니다.")
+        yolo_config = dict(epochs=epochs, imgsz=imgsz, batch=batch, device=device, weights=weights)
+        yolo_root = OUTPUT_DIR / "yolo_runs" / datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     samples = load_dataset()
     train_samples, test_samples = split_dataset(samples)
     print_summary(train_samples, "학습")
@@ -345,7 +360,11 @@ def train():
         raise ValueError("Test에 지원하지 않는 과일이 있습니다.")
 
     X_train = build_feature_table(train_samples)
-    models, comparisons = fit_fruit_models(X_train, train_samples)
+    if yolo_root is not None:
+        yolo_root.mkdir(parents=True)
+        (yolo_root / "config.json").write_text(json.dumps(yolo_config, indent=2), encoding="utf-8")
+    models, comparisons = fit_fruit_models(X_train, train_samples,
+                                         yolo_config=yolo_config, yolo_root=yolo_root)
     bundle = {
         "schema_version": 2,
         "models": models,
@@ -353,6 +372,7 @@ def train():
         "label_mapping": dict(RIPENESS_LABELS),
         "preprocess_config": dict(PREPROCESS_CONFIG),
         "seed": SEED,
+        "yolo_config": yolo_config,
         "cv_grouping": "dataset.group_id (직접 촬영: 개체+날짜)",
         "train_count": len(train_samples), "test_count": len(test_samples),
         "train_dataset_id": sample_id(pd.DataFrame(train_samples)),
@@ -385,9 +405,19 @@ def train():
 
 # main.py 와 연결 
 
-def main():
+def main(argv=None):
     """학습 프로그램의 시작점"""
-    train()
+    import argparse
+    parser = argparse.ArgumentParser(description="과일별 기존 5개 모델 + YOLOv8n-cls 통합 학습")
+    parser.add_argument("--epochs", type=int, default=30)
+    parser.add_argument("--imgsz", type=int, default=224)
+    parser.add_argument("--batch", type=int, default=16)
+    parser.add_argument("--device", default="cpu")
+    parser.add_argument("--weights", default="yolov8n-cls.pt")
+    parser.add_argument("--without-yolo", action="store_true", help="기존 5개 모델만 비교")
+    args = parser.parse_args(argv)
+    train(include_yolo=not args.without_yolo, epochs=args.epochs, imgsz=args.imgsz,
+          batch=args.batch, device=args.device, weights=args.weights)
 
 
 if __name__ == "__main__":

@@ -71,6 +71,8 @@ def load_model(model_path):
     entries = bundle["models"].values() if "models" in bundle else [bundle]
     for entry in entries:
         configure_prediction_jobs(entry["model"])
+        if getattr(entry["model"], "input_kind", None) == "image":
+            entry["model"].load()
     return bundle
 
 
@@ -184,7 +186,8 @@ def predict_loaded(image_path, bundle, model):
     """모델 재로딩 없이 한 장 처리. 파일 읽기부터 확률 계산까지 측정합니다."""
     started = perf_counter()
     timings = {}
-    X = extract_image_features(image_path, bundle, timings=timings)
+    X = ([image_path] if getattr(model, "input_kind", None) == "image"
+         else extract_image_features(image_path, bundle, timings=timings))
     prepared = perf_counter()
     inverse = {value: name for name, value in bundle["label_mapping"].items()}
     probabilities = None
