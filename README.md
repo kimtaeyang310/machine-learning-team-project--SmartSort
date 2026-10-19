@@ -5,6 +5,7 @@
 - [Mendeley Data 데이터셋 (버전 2)](https://data.mendeley.com/datasets/ptfscwtnyz/2)
 - [Kaggle — Fruit Ripeness: Unripe, Ripe and Rotten](https://www.kaggle.com/datasets/leftin/fruit-ripeness-unripe-ripe-and-rotten)
 - [Kaggle — Riped and Unriped Tomato Dataset](https://www.kaggle.com/datasets/sumn2u/riped-and-unriped-tomato-dataset)
+- [universe.roboflow — Tomatos Ripeness Computer Vision Dataset](https://universe.roboflow.com/models/object-detection)
 
 ### 특징값 재사용
 
