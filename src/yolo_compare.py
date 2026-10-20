@@ -1,6 +1,6 @@
 """YOLO helpers for unified training and readers for legacy comparison runs.
 
-python -m src.train --epochs 30 --device cpu
+python -m src.train --epochs 15 --device cpu
 python -m src.yolo_compare evaluate --run outputs/yolo_comparison/<run>
 python -m src.yolo_compare predict --run outputs/yolo_comparison/<run> --folder data/predict_list
 """
@@ -57,17 +57,50 @@ class YoloClassifier:
         return self.classes_[self.predict_proba(paths).argmax(1)]
 
 
+def stopping_split(frame):
+    """Keep outer scoring groups out of early stopping and require all classes."""
+    from sklearn.model_selection import StratifiedGroupKFold
+    for count in (3, 2):
+        if frame.group_id.nunique() < count:
+            continue
+        splitter = StratifiedGroupKFold(n_splits=count, shuffle=True, random_state=SEED)
+        for a, v in splitter.split(frame, frame.ripeness_label, frame.group_id):
+            if (set(frame.iloc[a].ripeness_label) == {0, 1, 2}
+                    and set(frame.iloc[v].ripeness_label) == {0, 1, 2}):
+                return frame.iloc[a], frame.iloc[v]
+    raise ValueError("조기 종료용 그룹 분할에 숙도별 그룹이 부족합니다. 데이터를 추가하거나 --patience 0을 사용하세요.")
+
+
+def best_epoch(checkpoint):
+    history = pd.read_csv(checkpoint.parent.parent / "results.csv")
+    history.columns = history.columns.str.strip()
+    fitness = (history["metrics/accuracy_top1"] + history["metrics/accuracy_top5"]) / 2
+    if history.empty or not np.isfinite(fitness).all():
+        raise ValueError("조기 종료 학습 기록이 올바르지 않습니다.")
+    # Ultralytics saves best.pt again on equal fitness.
+    return int(history.loc[fitness.eq(fitness.max()), "epoch"].iloc[-1])
+
+
 def compare_fruit(samples, splits, root, config):
     """Train-only fold scoring plus a full-Train refit; Test is never passed."""
     frame = pd.DataFrame(samples)
-    scores = []
+    scores, epochs = [], []
+    early = config.get("patience", 0) > 0
+    # Preflight inner splits before training any fold.
+    prepared = [(stopping_split(frame.iloc[a]) if early else (frame.iloc[a], frame.iloc[v]))
+                for a, v in splits]
     for fold, (a, v) in enumerate(splits, 1):
         folder = root / f"fold_{fold}"
         folder.mkdir(parents=True)
         frame.iloc[a].drop(columns=["path"], errors="ignore").to_csv(folder / "train_samples.csv", index=False)
         frame.iloc[v].drop(columns=["path"], errors="ignore").to_csv(folder / "valid_samples.csv", index=False)
-        data = materialize(frame.iloc[a], frame.iloc[v], folder / "dataset")
+        fitting, stopping = prepared[fold - 1]
+        fitting.drop(columns=["path"], errors="ignore").to_csv(folder / "fit_samples.csv", index=False)
+        stopping.drop(columns=["path"], errors="ignore").to_csv(folder / "stopping_samples.csv", index=False)
+        print(f"[{frame.iloc[0].fruit}] 검증 {fold}/{len(splits)}: 최대 {config['epochs']} epochs, patience={config.get('patience', 0)}", flush=True)
+        data = materialize(fitting, stopping, folder / "dataset")
         checkpoint = fit_yolo(data, folder / "training", config)
+        epochs.append(best_epoch(checkpoint) if early else config["epochs"])
         model = yolo_class()(str(checkpoint))
         values = probabilities(model, [image_path(p) for p in frame.iloc[v].image_path], config).argmax(1)
         scores.append(f1_score(frame.iloc[v].ripeness_label, values, labels=[0, 1, 2],
@@ -77,7 +110,12 @@ def compare_fruit(samples, splits, root, config):
            **{f"fold_{i}_macro_f1": score for i, score in enumerate(scores, 1)}}
     # API needs a val loader; final Train-only metrics are ignored.
     data = materialize(frame, frame, root / "final" / "dataset")
-    checkpoint = fit_yolo(data, root / "final" / "training", config)
+    final_config = dict(config, epochs=max(1, int(np.median(epochs))), patience=0)
+    (root / "epoch_selection.json").write_text(
+        json.dumps({"fold_best_epochs": epochs, "final_epochs": final_config["epochs"]}, indent=2),
+        encoding="utf-8")
+    print(f"[{frame.iloc[0].fruit}] 최종 Train 전체 학습: {final_config['epochs']} epochs", flush=True)
+    checkpoint = fit_yolo(data, root / "final" / "training", final_config)
     return row, YoloClassifier(checkpoint, config)
 
 
@@ -136,12 +174,13 @@ def fit_yolo(data, output, config):
     model.train(data=str(data), project=str(output.parent.resolve()), name=output.name,
                 epochs=config["epochs"], imgsz=config["imgsz"], batch=config["batch"],
                 device=config["device"], workers=0, seed=SEED, deterministic=True,
-                patience=0, val=False, plots=False, save=True, exist_ok=False,
+                patience=config.get("patience", 0), val=config.get("patience", 0) > 0,
+                plots=False, save=True, exist_ok=False,
                 auto_augment=None, erasing=0.0, hsv_h=0.0, hsv_s=0.0, hsv_v=0.0)
-    # Fixed epoch budget: never select a checkpoint using the scoring fold or Test.
-    checkpoint = Path(model.trainer.save_dir) / "weights" / "last.pt"
+    filename = "best.pt" if config.get("patience", 0) > 0 else "last.pt"
+    checkpoint = Path(model.trainer.save_dir) / "weights" / filename
     if not checkpoint.is_file():
-        raise RuntimeError(f"학습된 last.pt가 없습니다: {checkpoint}")
+        raise RuntimeError(f"학습된 체크포인트가 없습니다: {checkpoint}")
     return checkpoint
 
 
@@ -225,7 +264,8 @@ def main(argv=None):
     parser.add_argument("action", choices=["train", "evaluate", "predict"])
     parser.add_argument("--run", type=Path)
     parser.add_argument("--folder", type=Path, default=PROJECT_ROOT / "data" / "predict_list")
-    parser.add_argument("--epochs", type=int, default=30)
+    parser.add_argument("--epochs", type=int, default=15)
+    parser.add_argument("--patience", type=int, default=3)
     parser.add_argument("--imgsz", type=int, default=224)
     parser.add_argument("--batch", type=int, default=16)
     parser.add_argument("--device", default=None)
@@ -234,7 +274,7 @@ def main(argv=None):
     if args.action == "train":
         if min(args.epochs, args.imgsz, args.batch) < 1:
             parser.error("epochs, imgsz, batch는 양수여야 합니다.")
-        train(dict(epochs=args.epochs, imgsz=args.imgsz, batch=args.batch,
+        train(dict(epochs=args.epochs, patience=args.patience, imgsz=args.imgsz, batch=args.batch,
                    device=args.device or "cpu", weights=args.weights))
     elif args.run is None:
         parser.error("--run에 완료된 비교 실행 폴더를 지정하세요.")

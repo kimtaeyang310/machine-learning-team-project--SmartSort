@@ -44,7 +44,7 @@
 YOLO가 선택되어도 기존 **2번 평가 / 3번 폴더 예측**에서 자동으로 해당 모델을 사용합니다.
 
 ```powershell
-& ./.venv-yolo/Scripts/python.exe -m src.train --epochs 30 --device cpu
+& ./.venv-yolo/Scripts/python.exe -m src.train --epochs 15 --patience 3 --device cpu
 & ./.venv-yolo/Scripts/python.exe -m src.evaluate
 & ./.venv-yolo/Scripts/python.exe -m src.predict
 ```
@@ -52,13 +52,22 @@ YOLO가 선택되어도 기존 **2번 평가 / 3번 폴더 예측**에서 자동
 메뉴 실행: `& ./.venv-yolo/Scripts/python.exe main.py`
 다른 환경은 `python -m pip install -r requirements.txt`로 설치합니다.
 
-- 기본값은 CPU, 30 epochs, 이미지 크기 224, batch 16입니다. GPU는 `--device 0`을 사용합니다.
+- 기본값은 CPU, 최대 15 epochs, patience 3, 이미지 크기 224, batch 16입니다. GPU는 `--device 0`을 사용합니다.
 - 기존 모델만 학습하려면 `python -m src.train --without-yolo`를 사용합니다.
 - YOLO는 원본 이미지에서 학습하며 HSV 특징·K-means 마스크를 사용하지 않습니다.
   자동 증강·색상 증강·영역 지우기는 끕니다. 기본 분류 이미지 자르기는 적용됩니다.
-- fold마다 같은 사전학습 가중치에서 시작하여 고정 epoch의 `last.pt`로 평가합니다.
-  Test는 학습·튜닝·모델 선택에 사용하지 않습니다. 최종 Train 전체 재학습에서도 같은 epoch 수를 사용합니다.
-  최종 재학습의 내부 val 로더는 API 요구 때문에 Train을 재사용하며 그 점수는 보고하지 않습니다.
+- 각 fold 학습 부분에서 그룹을 유지한 조기 종료용 검증 데이터를 따로 분리합니다.
+  바깥 fold 검증 데이터와 Test는 조기 종료나 체크포인트 선택에 사용하지 않습니다.
+  3개 숙도를 모두 포함하는 내부 그룹 분할이 불가능하면 오류로 중단합니다.
+- 최대 15 epochs 동안 학습하며 내부 검증 fitness가 개선되지 않으면 patience 3으로 조기 종료합니다.
+  Ultralytics 분류 fitness는 top-1/top-5 정확도의 평균이며, 최종 후보 비교는 기존 Macro F1입니다.
+  동점 처리 등은 Ultralytics 구현을 따릅니다. 평가에는 내부 검증 최상의 `best.pt`를 사용합니다.
+- 최종 Train 전체 재학습은 fold별 best epoch의 중앙값(소수점 버림)만큼 수행합니다.
+  이 단계는 독립 검증 세트가 없어 조기 종료를 끄고 `last.pt`를 사용합니다.
+  내부 val 로더는 API 요구 때문에 Train을 재사용하지만 그 점수는 선택에 쓰지 않습니다.
+- `--patience 5` 등으로 조절할 수 있으며 `--patience 0`은 기존 고정 epoch 방식입니다.
+  조기 종료 활성화 시 fold 학습 사진 일부를 내부 검증으로 사용하므로 과거 고정 epoch 결과와
+  학습 조건이 달라집니다. 설정 변경 전후의 점수를 구분해 해석하세요.
 - 비교 결과는 `outputs/training/by_fruit/model_comparison.csv`의 **18행**과 기존 과일별 학습 이력에 저장합니다.
 - 선택 모델 묶음은 `models/ripeness_by_fruit.joblib`, YOLO 체크포인트와 fold 목록은
   `outputs/training/by_fruit/yolo_runs/실행폴더`에 저장합니다. YOLO를 사용하는 모델 묶음을 옮길 때는
@@ -457,7 +466,7 @@ Fruit Mask 생성
 | Random Forest | 별도 표준화 없음 | n_estimators=300, min_samples_leaf=2, class_weight=balanced |
 | K-Nearest Neighbors (KNN) | StandardScaler | n_neighbors=5, weights=uniform |
 | Decision Tree (DT) | 별도 표준화 없음 | max_depth=5, min_samples_leaf=2, class_weight=balanced |
-| YOLOv8n-cls | 원본 이미지 | 사전학습 가중치, 30 epochs, imgsz=224 |
+| YOLOv8n-cls | 원본 이미지 | 사전학습 가중치, 최대 15 epochs, patience 3, imgsz=224 |
 
 KNN은 특징 간 거리로 판단하므로 단위가 다른 특징을 표준화합니다. DT는 과적합을 줄이기 위해 깊이와 말단 노드의 최소 샘플 수를 제한합니다. KNN·DT 설정은 초기 비교용이며 최적화된 값이 아닙니다.
 

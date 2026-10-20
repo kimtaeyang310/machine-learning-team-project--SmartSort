@@ -337,7 +337,7 @@ def fit_fruit_models(X_train, train_samples, *, yolo_config=None, yolo_root=None
     return bundles, comparisons
 
 
-def train(*, include_yolo=True, epochs=30, imgsz=224, batch=16, device="cpu", weights="yolov8n-cls.pt"):
+def train(*, include_yolo=True, epochs=15, patience=3, imgsz=224, batch=16, device="cpu", weights="yolov8n-cls.pt"):
     """과일별 모델을 학습하고 하나의 모델 묶음으로 저장합니다."""
     yolo_config, yolo_root = None, None
     if include_yolo:
@@ -347,7 +347,9 @@ def train(*, include_yolo=True, epochs=30, imgsz=224, batch=16, device="cpu", we
         yolo_class()
         if min(epochs, imgsz, batch) < 1:
             raise ValueError("epochs, imgsz, batch는 양수여야 합니다.")
-        yolo_config = dict(epochs=epochs, imgsz=imgsz, batch=batch, device=device, weights=weights)
+        if patience < 0:
+            raise ValueError("patience는 0 이상이어야 합니다.")
+        yolo_config = dict(epochs=epochs, patience=patience, imgsz=imgsz, batch=batch, device=device, weights=weights)
         yolo_root = OUTPUT_DIR / "yolo_runs" / datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     samples = load_dataset()
     train_samples, test_samples = split_dataset(samples)
@@ -409,14 +411,15 @@ def main(argv=None):
     """학습 프로그램의 시작점"""
     import argparse
     parser = argparse.ArgumentParser(description="과일별 기존 5개 모델 + YOLOv8n-cls 통합 학습")
-    parser.add_argument("--epochs", type=int, default=30)
+    parser.add_argument("--epochs", type=int, default=15)
+    parser.add_argument("--patience", type=int, default=3, help="검증 성능 미개선 허용 epoch 수, 0은 비활성화")
     parser.add_argument("--imgsz", type=int, default=224)
     parser.add_argument("--batch", type=int, default=16)
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--weights", default="yolov8n-cls.pt")
     parser.add_argument("--without-yolo", action="store_true", help="기존 5개 모델만 비교")
     args = parser.parse_args(argv)
-    train(include_yolo=not args.without_yolo, epochs=args.epochs, imgsz=args.imgsz,
+    train(include_yolo=not args.without_yolo, epochs=args.epochs, patience=args.patience, imgsz=args.imgsz,
           batch=args.batch, device=args.device, weights=args.weights)
 
 
