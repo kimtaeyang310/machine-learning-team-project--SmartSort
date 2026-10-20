@@ -13,11 +13,40 @@ from src.yolo_compare import materialize, probabilities, fit_yolo
 
 
 class YoloComparisonTests(unittest.TestCase):
+    def test_stopping_split_preserves_groups_and_classes(self):
+        from src.yolo_compare import stopping_split
+        frame = pd.DataFrame([dict(group_id=f'{label}_{g}', ripeness_label=label)
+                              for label in range(3) for g in range(6) for _ in range(2)])
+        fitting, stopping = stopping_split(frame)
+        self.assertFalse(set(fitting.group_id) & set(stopping.group_id))
+        self.assertEqual(set(fitting.ripeness_label), {0, 1, 2})
+        self.assertEqual(set(stopping.ripeness_label), {0, 1, 2})
+        with self.assertRaises(ValueError):
+            stopping_split(pd.DataFrame({'group_id':['one']*3, 'ripeness_label':[0,1,2]}))
+
+    def test_early_stopping_enables_validation_and_loads_best(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            checkpoint = root / 'weights' / 'best.pt'
+            checkpoint.parent.mkdir()
+            checkpoint.touch()
+            model = Mock()
+            model.trainer.save_dir = root
+            with patch('src.yolo_compare.yolo_class', return_value=Mock(return_value=model)):
+                result = fit_yolo(root / 'data', root / 'training',
+                                  dict(weights='yolov8n-cls.pt', epochs=15, patience=3,
+                                       imgsz=224, batch=16, device='cpu'))
+            self.assertEqual(result, checkpoint)
+            self.assertTrue(model.train.call_args.kwargs['val'])
+            self.assertEqual(model.train.call_args.kwargs['patience'], 3)
+
     def test_unified_cli_enables_yolo_by_default(self):
         from src.train import main
         with patch('src.train.train') as train:
             main([])
             self.assertTrue(train.call_args.kwargs['include_yolo'])
+            self.assertEqual(train.call_args.kwargs['epochs'], 15)
+            self.assertEqual(train.call_args.kwargs['patience'], 3)
             main(['--without-yolo'])
             self.assertFalse(train.call_args.kwargs['include_yolo'])
 
