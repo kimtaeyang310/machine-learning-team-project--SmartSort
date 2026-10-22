@@ -41,7 +41,7 @@ class FolderPredictionTests(unittest.TestCase):
                  patch("src.predict.select_model", return_value=(Mock(), "test")), \
                  patch("src.predict.predict_loaded", side_effect=[result, ValueError("broken")]) as process, \
                  contextlib.redirect_stdout(io.StringIO()):
-                rows, summary = predict_folder(root)
+                rows, summary = predict_folder(root, fruit_mode="filename")
             self.assertEqual(load.call_count, 1)
             self.assertEqual(process.call_count, 2)
             self.assertEqual(summary["success_count"], 1)

@@ -47,6 +47,7 @@ from src.feature_extraction import extract_features
 from src.model_bundle import MODEL_PATH, FRUITS, validate_bundle, select_model
 from src.agent import decide_next_action
 from src.agent.decision import DEFAULT_CONFIDENCE_THRESHOLD, REVIEW_REQUIRED_CLASSES
+from src.fruit_classifier import FruitClassifier, MODEL_PATH as FRUIT_MODEL_PATH
 
 
 # ============================================================
@@ -226,11 +227,23 @@ def predict_loaded(image_path, bundle, model):
             "total_ms": (finished - started) * 1000}
 
 
-def predict(image_path, model_path=MODEL_PATH, *, fruit=None):
-    """기존 단일 이미지 호출과의 호환성을 유지합니다."""
+def predict(image_path, model_path=MODEL_PATH, *, fruit=None, fruit_mode="image",
+            fruit_model_path=FRUIT_MODEL_PATH):
+    """기본은 이미지 기반 판별. filename 모드는 기존 명시적 종류 입력을 지원합니다."""
+    path = resolve_image_path(image_path)
+    if fruit_mode not in {"image", "filename"}:
+        raise ValueError("fruit_mode: image 또는 filename")
+    if fruit_mode == "image":
+        identity = FruitClassifier(fruit_model_path).classify(path)
+        if not identity["accepted"]:
+            print("모르는 과일입니다. 숙도 판정을 생략합니다.")
+            return "unknown"
+        fruit = identity["fruit"]
+    elif fruit is None:
+        fruit = infer_fruit(path)
     bundle = load_model(model_path)
     model, name = select_model(bundle, fruit)
-    result = predict_loaded(resolve_image_path(image_path), bundle, model)
+    result = predict_loaded(path, bundle, model)
     print(f"{fruit} / {name}: {result['ripeness']} ({result['total_ms']:.2f} ms)")
     return result["ripeness"]
 
@@ -248,7 +261,8 @@ def infer_fruit(image_path):
     return found.pop()
 
 
-def predict_folder(folder_path=PREDICT_DIR, model_path=MODEL_PATH):
+def predict_folder(folder_path=PREDICT_DIR, model_path=MODEL_PATH, *, fruit_mode="image",
+                   fruit_model_path=FRUIT_MODEL_PATH):
     """폴더 바로 아래 이미지 전체를 처리합니다. 실패 파일도 시간과 이유를 기록합니다."""
     folder = Path(folder_path)
     if not folder.is_absolute():
@@ -260,25 +274,44 @@ def predict_folder(folder_path=PREDICT_DIR, model_path=MODEL_PATH):
                    if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS)
     if not paths:
         raise ValueError(f"지원하는 이미지가 없습니다: {folder}")
+    if fruit_mode not in {"image", "filename"}:
+        raise ValueError("fruit_mode: image 또는 filename")
     load_started = perf_counter()
+    detector = FruitClassifier(fruit_model_path) if fruit_mode == "image" else None
     bundle = load_model(model_path)
     load_ms = (perf_counter() - load_started) * 1000
     print(f"\n폴더: {folder} / 사진: {len(paths)}장")
-    print("파일명으로 과일을 구분해 해당 모델을 적용합니다.")
+    print("이미지로 과일 종류와 모름 여부를 판별합니다." if detector else
+          "호환 모드: 파일명으로 과일을 구분합니다. 모르는 과일 판별은 수행하지 않습니다.")
     print(f"모델 로딩: {load_ms:.2f} ms (이미지 처리 시간과 별도)")
     results = []
     batch_started = perf_counter()
     for index, path in enumerate(paths, 1):
         started = perf_counter()
+        identity = None
+        identity_ms = None
         try:
-            fruit = infer_fruit(path)
-            model, name = select_model(bundle, fruit)
-            result = predict_loaded(path, bundle, model)
-            result.update(status="ok", error="", fruit=fruit, model=name)
-            result["agent_decision"] = decide_next_action(result)
+            identity_started = perf_counter()
+            identity = detector.classify(path) if detector else None
+            identity_ms = (perf_counter() - identity_started) * 1000
+            if identity is not None and not identity["accepted"]:
+                result = {"image_path": str(path), "status": "unknown", "fruit": "unknown",
+                          "error": "", "ripeness": None, "probabilities": None,
+                          "fruit_identity": identity, "fruit_identity_ms": identity_ms,
+                          "agent_decision": {"action": "human_review", "reason": "모르는 과일입니다. 숙도 판정을 생략합니다.",
+                                             "suggested_label": None, "confidence": None,
+                                             "requires_confirmation": True}}
+            else:
+                fruit = identity["fruit"] if identity else infer_fruit(path)
+                model, name = select_model(bundle, fruit)
+                result = predict_loaded(path, bundle, model)
+                result.update(status="ok", error="", fruit=fruit, model=name,
+                              fruit_identity=identity, fruit_identity_ms=identity_ms)
+                result["agent_decision"] = decide_next_action(result)
             result["total_ms"] = (perf_counter() - started) * 1000
         except Exception as error:
             result = {"image_path": str(path), "status": "failed", "error": str(error),
+                      "fruit_identity": identity, "fruit_identity_ms": identity_ms,
                       "total_ms": (perf_counter() - started) * 1000}
         results.append(result)
         if result["status"] == "ok":
@@ -289,18 +322,24 @@ def predict_folder(folder_path=PREDICT_DIR, model_path=MODEL_PATH):
                   f" | 전체 {result['total_ms']:.2f} ms")
             decision = result["agent_decision"]
             print(f"    에이전트: {decision['action']} — {decision['reason']}")
+        elif result["status"] == "unknown":
+            print(f"[{index}/{len(paths)}] {path.name} → 모르는 과일입니다. 숙도 판정 생략"
+                  f" | {result['total_ms']:.2f} ms")
         else:
             print(f"[{index}/{len(paths)}] {path.name} → 실패 ({result['total_ms']:.2f} ms): {result['error']}")
     batch_ms = (perf_counter() - batch_started) * 1000
     successful = [r for r in results if r["status"] == "ok"]
+    unknown_count = sum(r["status"] == "unknown" for r in results)
+    failed_count = sum(r["status"] == "failed" for r in results)
     times = np.asarray([r["total_ms"] for r in successful])
     total_processing_ms = sum(r["total_ms"] for r in results)
     summary = {"count": len(results), "success_count": len(successful),
-               "failure_count": len(results) - len(successful), "model_load_ms": load_ms,
+               "failure_count": failed_count, "unknown_count": unknown_count,
+               "fruit_mode": fruit_mode, "model_load_ms": load_ms,
                "processing_ms": total_processing_ms, "batch_ms": batch_ms,
                "mean_ms": float(times.mean()) if len(times) else None,
                "p95_ms": float(np.percentile(times, 95)) if len(times) else None,
-               "fps": len(successful) * 1000 / total_processing_ms if total_processing_ms else 0.0}
+               "fps": (len(successful) + unknown_count) * 1000 / total_processing_ms if total_processing_ms else 0.0}
     stages = ("read_ms", "denoise_ms", "resize_ms", "manual_mask_ms", "kmeans_ms", "mask_other_ms", "finish_ms")
     measured = [r for r in successful if r.get("preprocessing_ms")]
     summary["preprocessing_mean_ms"] = {
@@ -312,11 +351,11 @@ def predict_folder(folder_path=PREDICT_DIR, model_path=MODEL_PATH):
         print("\n전처리 단계별 평균(ms): " + " / ".join(
             f"{label} {summary['preprocessing_mean_ms'][stage]:.2f}"
             for label, stage in zip(labels, stages)))
-    print(f"\n완료: 성공 {summary['success_count']} / 실패 {summary['failure_count']}")
+    print(f"\n완료: 숙도 판정 {summary['success_count']} / 모르는 과일 {unknown_count} / 실패 {summary['failure_count']}")
     print(f"전체 순차 실행: {batch_ms / 1000:.3f}초 (결과 출력 포함, 모델 로딩 제외)")
     if len(times):
         print(f"성공 사진 평균: {summary['mean_ms']:.2f} ms / P95: {summary['p95_ms']:.2f} ms")
-    print(f"처리 FPS: {summary['fps']:.2f} (성공 장수 / 실패 포함 처리 시간, 결과 출력 제외)")
+    print(f"처리 FPS: {summary['fps']:.2f} (정상 처리·모름 판정 장수 / 실패 포함 처리 시간, 결과 출력 제외)")
     goal = "판정 보류: 처리 실패 있음" if summary['failure_count'] else ("달성" if summary['fps'] >= 25 else "미달성")
     print(f"25 FPS 목표: {goal}")
     print("첫 이미지 포함 측정이며 워밍업은 하지 않습니다. 준비 시간은 이미지 읽기·전처리·영역 분리·특징 구성을 포함합니다.")
@@ -334,6 +373,7 @@ def save_prediction_artifacts(results, output_csv, *, model_path=MODEL_PATH,
         "image_path", "status", "fruit", "model", "ripeness",
         "probabilities_json", "agent_decision_json", "error",
         "preprocessing_ms_json", "feature_ms", "prediction_ms", "total_ms",
+        "fruit_identity_json", "fruit_identity_ms",
     ]
     with output_csv.open("w", encoding="utf-8-sig", newline="") as file:
         writer = csv.DictWriter(file, fieldnames=fields)
@@ -358,6 +398,8 @@ def save_prediction_artifacts(results, output_csv, *, model_path=MODEL_PATH,
                 "feature_ms": result.get("feature_ms", ""),
                 "prediction_ms": result.get("prediction_ms", ""),
                 "total_ms": result.get("total_ms", ""),
+                "fruit_identity_json": json.dumps(result.get("fruit_identity"), ensure_ascii=False, sort_keys=True),
+                "fruit_identity_ms": result.get("fruit_identity_ms", ""),
             })
 
     model_path = Path(model_path)
@@ -382,6 +424,10 @@ def save_prediction_artifacts(results, output_csv, *, model_path=MODEL_PATH,
         "python_version": platform.python_version(),
         "platform": platform.platform(),
         "result_count": len(results),
+        "fruit_identity_models": sorted({row["fruit_identity"]["model_sha256"] for row in results
+                                          if row.get("fruit_identity")}),
+        "unknown_count": sum(row.get("status") == "unknown" for row in results),
+        "failure_count": sum(row.get("status") == "failed" for row in results),
     }
     manifest_path = output_csv.with_suffix(".manifest.json")
     manifest_path.write_text(
@@ -397,10 +443,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="폴더 전체 숙도 예측 및 시간 측정")
     parser.add_argument("folder", nargs="?", default=str(PREDICT_DIR), help="기본: data/predict_list")
     parser.add_argument("--results-csv", type=Path,
-                        help="예측·에이전트 결과 CSV와 실행 manifest 저장 경로")
+                        default=PROJECT_ROOT / "outputs" / "predictions" /
+                        (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ") + ".csv"),
+                        help="예측·에이전트 결과 CSV와 실행 manifest 저장 경로 (기본 outputs/predictions)")
+    parser.add_argument("--fruit-mode", choices=("image", "filename"), default="image",
+                        help="기본 image. filename은 모름 판별 없는 기존 호환 모드")
+    parser.add_argument("--fruit-model", type=Path, default=FRUIT_MODEL_PATH)
     args = parser.parse_args()
     try:
-        results, _ = predict_folder(args.folder)
+        results, _ = predict_folder(args.folder, fruit_mode=args.fruit_mode, fruit_model_path=args.fruit_model)
         if args.results_csv:
             csv_path, manifest_path = save_prediction_artifacts(
                 results, args.results_csv, source_folder=args.folder

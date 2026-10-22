@@ -1,5 +1,17 @@
 # 🍎 SmartSort
 
+## 과일 종류 자동 인식·모르는 과일 판별
+
+이제 폴더 예측은 사진에서 바나나·귤·토마토를 구분하고, 지원 과일로 받아들이지 않은
+사진은 **모르는 과일**로 표시한 뒤 숙도 예측을 생략합니다. 과일+개체 ID로 학습·검증 자료를 분리하고,
+중앙 자르기·전체 비율 보존·과일 영역 전처리와 MSP·임베딩 거리를 비교합니다.
+예측 과일별 Calibration의 약 95% 통과 기준을 계산하고, 별도 Selection에서 포도·레몬 오수락을 우선 줄이는 방법을 선택합니다.
+기존 숙도 모델과 별도로 `python -m src.train_fruit_classifier`를 먼저 실행하세요.
+`main.py`의 4번은 종류 학습·기준 선택, 5번은 저장 기준 평가, 3번은 통합 폴더 예측입니다.
+
+두 오류 비율, 데이터 분리, 전처리 비교와 결과 파일은 [v2 상세 안내](docs/fruit_unknown_detection_v2.md)를 참고하세요.
+이후 문서의 파일명 기반 종류 선택 설명은 `--fruit-mode filename` 호환 모드에 해당합니다.
+
 ## 출처
 
 - [Mendeley Data 데이터셋 (버전 2)](https://data.mendeley.com/datasets/ptfscwtnyz/2)
