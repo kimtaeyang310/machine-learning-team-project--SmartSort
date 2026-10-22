@@ -26,6 +26,7 @@ data/samples/
 results/
 *.csv
 *.log
+!docs/agent_evaluation/*.csv
 
 # 환경점검 임시 생성 이미지
 env_test.png

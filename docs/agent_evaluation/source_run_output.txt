@@ -1,0 +1,129 @@
+PS C:\Users\user1\Desktop\smartfarm_data\machine-learning-team-project--SmartSort> python -m src.predict data/predict_list
+
+폴더: C:\Users\user1\Desktop\smartfarm_data\machine-learning-team-project--SmartSort\data\predict_list / 사진: 58장
+파일명으로 과일을 구분해 해당 모델을 적용합니다.
+모델 로딩: 7077.82 ms (이미지 처리 시간과 별도)
+[1/58] 20261008_mandarin_M09_indoor_dim_08.jpg → mandarin / yolov8n_cls / unripe / 확률 97.2% | 준비 0.00 + 예측 150.31 | 전체 150.73 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[2/58] 20261008_mandarin_M09_indoor_dim_09.jpg → mandarin / yolov8n_cls / unripe / 확률 97.6% | 준비 0.00 + 예측 122.36 | 전체 122.42 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[3/58] 20261008_mandarin_M09_indoor_dim_10.jpg → mandarin / yolov8n_cls / unripe / 확률 98.8% | 준비 0.00 + 예측 125.41 | 전체 125.46 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[4/58] 20261008_mandarin_M10_indoor_01.jpg → mandarin / yolov8n_cls / unripe / 확률 61.7% | 준비 0.00 + 예측 151.58 | 전체 151.65 ms
+    에이전트: retake — 최고 예측 확률이 61.7%로 기준 70%보다 낮습니다. 조명과 구도를 확인해 재촬영해 주세요.
+[5/58] 20261008_mandarin_M10_indoor_02.jpg → mandarin / yolov8n_cls / unripe / 확률 92.6% | 준비 0.00 + 예측 129.87 | 전체 129.93 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[6/58] 20261008_mandarin_M10_indoor_03.jpg → mandarin / yolov8n_cls / unripe / 확률 97.1% | 준비 0.00 + 예측 124.63 | 전체 124.68 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[7/58] 20261008_mandarin_M10_indoor_04.jpg → mandarin / yolov8n_cls / unripe / 확률 73.1% | 준비 0.00 + 예측 108.31 | 전체 108.39 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[8/58] 20261008_mandarin_M10_indoor_05.jpg → mandarin / yolov8n_cls / unripe / 확률 98.0% | 준비 0.00 + 예측 107.45 | 전체 107.50 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[9/58] 20261008_mandarin_M10_indoor_dim_06.jpg → mandarin / yolov8n_cls / unripe / 확률 99.0% | 준비 0.00 + 예측 109.57 | 전체 109.63 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[10/58] 20261008_mandarin_M10_indoor_dim_07.jpg → mandarin / yolov8n_cls / unripe / 확률 99.5% | 준비 0.00 + 예측 133.08 | 전체 133.13 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[11/58] 20261008_mandarin_M10_indoor_dim_08.jpg → mandarin / yolov8n_cls / unripe / 확률 99.5% | 준비 0.00 + 예측 103.73 | 전체 103.78 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[12/58] 20261008_mandarin_M10_indoor_dim_09.jpg → mandarin / yolov8n_cls / unripe / 확률 91.8% | 준비 0.00 + 예측 109.75 | 전체 109.80 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[13/58] 20261008_mandarin_M10_indoor_dim_10.jpg → mandarin / yolov8n_cls / unripe / 확률 98.2% | 준비 0.00 + 예측 103.99 | 전체 104.04 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[14/58] 20261008_tomato_T09_indoor_dim_08.jpg → tomato / yolov8n_cls / ripe / 확률 81.5% | 준비 0.00 + 예측 125.82 | 전체 125.90 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[15/58] 20261008_tomato_T09_indoor_dim_09.jpg → tomato / yolov8n_cls / ripe / 확률 88.0% | 준비 0.00 + 예측 112.81 | 전체 112.86 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[16/58] 20261008_tomato_T09_indoor_dim_10.jpg → tomato / yolov8n_cls / ripe / 확률 85.6% | 준비 0.00 + 예측 130.97 | 전체 131.02 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[17/58] 20261008_tomato_T10_indoor_01.jpg → tomato / yolov8n_cls / ripe / 확률 98.7% | 준비 0.00 + 예측 109.26 | 전체 109.32 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[18/58] 20261008_tomato_T10_indoor_02.jpg → tomato / yolov8n_cls / ripe / 확률 99.6% | 준비 0.00 + 예측 110.22 | 전체 110.28 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[19/58] 20261008_tomato_T10_indoor_03.jpg → tomato / yolov8n_cls / ripe / 확률 99.6% | 준비 0.00 + 예측 112.96 | 전체 113.01 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[20/58] 20261008_tomato_T10_indoor_04.jpg → tomato / yolov8n_cls / ripe / 확률 97.0% | 준비 0.00 + 예측 110.11 | 전체 110.16 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[21/58] 20261008_tomato_T10_indoor_05.jpg → tomato / yolov8n_cls / ripe / 확률 92.3% | 준비 0.00 + 예측 109.86 | 전체 109.91 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[22/58] 20261008_tomato_T10_indoor_dim_06.jpg → tomato / yolov8n_cls / overripe / 확률 86.1% | 준비 0.00 + 예측 110.82 | 전체 110.88 ms
+    에이전트: human_review — 토마토 과숙 분류는 검증 성능이 낮아 사람 확인이 필요합니다.
+[23/58] 20261008_tomato_T10_indoor_dim_07.jpg → tomato / yolov8n_cls / overripe / 확률 93.1% | 준비 0.00 + 예측 117.66 | 전체 117.72 ms
+    에이전트: human_review — 토마토 과숙 분류는 검증 성능이 낮아 사람 확인이 필요합니다.
+[24/58] 20261008_tomato_T10_indoor_dim_08.jpg → tomato / yolov8n_cls / ripe / 확률 93.3% | 준비 0.00 + 예측 119.31 | 전체 119.37 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[25/58] 20261008_tomato_T10_indoor_dim_09.jpg → tomato / yolov8n_cls / ripe / 확률 97.9% | 준비 0.00 + 예측 111.55 | 전체 111.61 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[26/58] 20261008_tomato_T10_indoor_dim_10.jpg → tomato / yolov8n_cls / ripe / 확률 99.1% | 준비 0.00 + 예측 114.98 | 전체 115.03 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[27/58] 20261012_tomato_T15_indoor_01.jpeg → tomato / yolov8n_cls / unripe / 확률 98.4% | 준비 0.00 + 예측 23.02 | 전체 23.07 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[28/58] 20261012_tomato_T16_indoor_01.jpeg → tomato / yolov8n_cls / unripe / 확률 98.1% | 준비 0.00 + 예측 474.84 | 전체 474.91 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[29/58] banana1.jpg → banana / yolov8n_cls / overripe / 확률 100.0% | 준비 0.00 + 예측 30.51 | 전체 30.58 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[30/58] banana10.jpg → banana / yolov8n_cls / overripe / 확률 99.9% | 준비 0.00 + 예측 8.25 | 전체 8.31 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[31/58] banana11.jpg → banana / yolov8n_cls / overripe / 확률 99.9% | 준비 0.00 + 예측 10.32 | 전체 10.40 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[32/58] banana12.jpg → banana / yolov8n_cls / overripe / 확률 100.0% | 준비 0.00 + 예측 8.44 | 전체 8.51 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[33/58] banana13.jpg → banana / yolov8n_cls / overripe / 확률 99.7% | 준비 0.00 + 예측 8.17 | 전체 8.24 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[34/58] banana14.jpg → banana / yolov8n_cls / overripe / 확률 100.0% | 준비 0.00 + 예측 8.28 | 전체 8.35 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[35/58] banana15.jpg → banana / yolov8n_cls / unripe / 확률 59.0% | 준비 0.00 + 예측 7.27 | 전체 7.33 ms
+    에이전트: retake — 최고 예측 확률이 59.0%로 기준 70%보다 낮습니다. 조명과 구도를 확인해 재촬영해 주세요.
+[36/58] banana16.jpg → banana / yolov8n_cls / ripe / 확률 99.8% | 준비 0.00 + 예측 6.78 | 전체 6.83 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[37/58] banana17.jpg → banana / yolov8n_cls / ripe / 확률 99.1% | 준비 0.00 + 예측 32.21 | 전체 32.27 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[38/58] banana18.jpg → banana / yolov8n_cls / ripe / 확률 100.0% | 준비 0.00 + 예측 14.04 | 전체 14.12 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[39/58] banana19.jpg → banana / yolov8n_cls / ripe / 확률 97.4% | 준비 0.00 + 예측 6.95 | 전체 7.03 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[40/58] banana2.jpg → banana / yolov8n_cls / overripe / 확률 100.0% | 준비 0.00 + 예측 7.38 | 전체 7.43 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[41/58] banana20.jpg → banana / yolov8n_cls / ripe / 확률 99.7% | 준비 0.00 + 예측 6.73 | 전체 6.80 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[42/58] banana21.jpg → banana / yolov8n_cls / ripe / 확률 99.9% | 준비 0.00 + 예측 7.42 | 전체 7.48 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[43/58] banana22.jpg → banana / yolov8n_cls / ripe / 확률 100.0% | 준비 0.00 + 예측 6.68 | 전체 6.74 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[44/58] banana23.jpg → banana / yolov8n_cls / ripe / 확률 98.9% | 준비 0.00 + 예측 7.60 | 전체 7.66 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[45/58] banana24.jpg → banana / yolov8n_cls / ripe / 확률 100.0% | 준비 0.00 + 예측 7.31 | 전체 7.37 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[46/58] banana25.jpg → banana / yolov8n_cls / unripe / 확률 99.4% | 준비 0.00 + 예측 6.68 | 전체 6.74 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[47/58] banana26.jpg → banana / yolov8n_cls / unripe / 확률 98.9% | 준비 0.00 + 예측 7.34 | 전체 7.40 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[48/58] banana27.jpg → banana / yolov8n_cls / unripe / 확률 99.9% | 준비 0.00 + 예측 6.76 | 전체 6.82 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[49/58] banana28.jpg → banana / yolov8n_cls / unripe / 확률 91.7% | 준비 0.00 + 예측 7.18 | 전체 7.22 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[50/58] banana29.jpg → banana / yolov8n_cls / unripe / 확률 96.9% | 준비 0.00 + 예측 6.68 | 전체 6.75 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[51/58] banana3.jpg → banana / yolov8n_cls / overripe / 확률 100.0% | 준비 0.00 + 예측 6.93 | 전체 6.99 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[52/58] banana30.jpg → banana / yolov8n_cls / ripe / 확률 72.6% | 준비 0.00 + 예측 7.01 | 전체 7.08 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[53/58] banana4.jpg → banana / yolov8n_cls / overripe / 확률 98.4% | 준비 0.00 + 예측 6.82 | 전체 6.88 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[54/58] banana5.jpg → banana / yolov8n_cls / overripe / 확률 100.0% | 준비 0.00 + 예측 7.42 | 전체 7.47 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[55/58] banana6.jpg → banana / yolov8n_cls / overripe / 확률 100.0% | 준비 0.00 + 예측 6.57 | 전체 6.63 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[56/58] banana7.jpg → banana / yolov8n_cls / overripe / 확률 100.0% | 준비 0.00 + 예측 7.29 | 전체 7.35 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[57/58] banana8.jpg → banana / yolov8n_cls / overripe / 확률 99.9% | 준비 0.00 + 예측 6.97 | 전체 7.03 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+[58/58] banana9.jpg → banana / yolov8n_cls / overripe / 확률 99.6% | 준비 0.00 + 예측 7.12 | 전체 7.18 ms
+    에이전트: auto_classify — 예측 결과가 자동 분류 기준을 충족했습니다.
+
+완료: 성공 58 / 실패 0
+전체 순차 실행: 3.863초 (결과 출력 포함, 모델 로딩 제외)
+성공 사진 평균: 66.43 ms / P95: 135.77 ms
+처리 FPS: 15.05 (성공 장수 / 실패 포함 처리 시간, 결과 출력 제외)
+25 FPS 목표: 미달성
+첫 이미지 포함 측정이며 워밍업은 하지 않습니다. 준비 시간은 이미지 읽기·전처리·영역 분리·특징 구성을 포함합니다.
+PS C:\Users\user1\Desktop\smartfarm_data\machine-learning-team-project--SmartSort> 

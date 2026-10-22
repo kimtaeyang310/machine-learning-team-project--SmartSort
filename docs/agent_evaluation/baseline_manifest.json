@@ -1,0 +1,20 @@
+{
+  "baseline_id": "attached_execution_log_baseline",
+  "source_run_timestamp": "unknown_in_original_console_output",
+  "source_run_output": "source_run_output.txt",
+  "source_run_output_sha256": "5732f2eb6a298e4b693059f8c8f673d7d08f04f8b8a88131a29a3e5dfbcaa911",
+  "prediction_snapshot": "baseline_predictions.csv",
+  "prediction_snapshot_sha256": "d4e24a93cfb580c39a18dfbe7729042224fe02038fec40194dfdb51b5dac2028",
+  "evaluation_script": "../../scripts/evaluate_agent_baseline.py",
+  "evaluation_script_sha256": "09a4ce89b9a7c487c3b286a1628c1c2dfa01fa79eda1479734d4fed01a31e721",
+  "workspace_git_head_at_preparation": "94d5de5c827f358bcb84e448e507eb1a8266ffba",
+  "reported_model": "yolov8n_cls",
+  "workspace_model_bundle": "../../models/ripeness_by_fruit.joblib",
+  "workspace_model_bundle_sha256_at_preparation": "0389fa71170344457bb6adb2bcf1ea0ed297548d200117dad3f3091de2556ded",
+  "workspace_model_hash_confirmed_as_source_run_model": false,
+  "labels": "../../data/metadata/fruit_labels.csv plus exact-hash matched banana raw-folder labels",
+  "split_counts": {
+    "test": 58
+  },
+  "notes": "Original console log does not record an execution timestamp, model hash, commit, or runtime versions; these are not inferred."
+}

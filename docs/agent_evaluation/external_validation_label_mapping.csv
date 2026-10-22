@@ -1,0 +1,12 @@
+dataset_id,source_label,project_fruit,project_ripeness,mapping_status,notes
+Roboflow_Mandarinas_Madurez_v1,Mandarina_madura,mandarin,ripe,direct_class_mapping,"Public page reports orange/ripe class; inspect actual annotations after export"
+Roboflow_Mandarinas_Madurez_v1,Mandarina_verde,mandarin,unripe,direct_class_mapping,"Public page reports green/unripe class; inspect actual annotations after export"
+Mendeley_Banana_Ripeness_v2,unripe,banana,unripe,direct_class_mapping,"Verify class ids and image-level usability from downloaded YOLO annotations"
+Mendeley_Banana_Ripeness_v2,ripe,banana,ripe,direct_class_mapping,"Verify class ids and image-level usability from downloaded YOLO annotations"
+Mendeley_Banana_Ripeness_v2,overripe,banana,overripe,direct_class_mapping,"Verify class ids and image-level usability from downloaded YOLO annotations"
+Roboflow_Tomato_Hat4j_v1,ripe,tomato,ripe,direct_class_mapping,"Inspect exported annotations and target visibility"
+Roboflow_Tomato_Hat4j_v1,overripe,tomato,overripe,direct_label_candidate,"Check class annotation semantics in exported files"
+Roboflow_Tomato_Hat4j_v1,over-ripe,tomato,overripe,pending_duplicate_label_audit,"Merge only if sample annotations confirm this is a spelling duplicate of overripe"
+Roboflow_Tomato_Hat4j_v1,unripe,tomato,unripe,direct_class_mapping,"Inspect exported annotations and target visibility"
+Roboflow_Tomato_Hat4j_v1,semi-ripe,tomato,,excluded_no_project_class,"Do not collapse semi-ripe into ripe"
+Roboflow_Tomato_Hat4j_v1,rotten,tomato,,excluded_not_overripe,"Rotten is not synonymous with overripe"
