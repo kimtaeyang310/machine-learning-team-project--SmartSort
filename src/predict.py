@@ -11,8 +11,13 @@
 """
 
 from pathlib import Path
-import sys
+import csv
+import hashlib
+import json
+import platform
 import re
+import sys
+from datetime import datetime, timezone
 from time import perf_counter
 
 
@@ -40,6 +45,8 @@ from sklearn.ensemble import RandomForestClassifier
 from src.preprocessing import preprocess
 from src.feature_extraction import extract_features
 from src.model_bundle import MODEL_PATH, FRUITS, validate_bundle, select_model
+from src.agent import decide_next_action
+from src.agent.decision import DEFAULT_CONFIDENCE_THRESHOLD, REVIEW_REQUIRED_CLASSES
 
 
 # ============================================================
@@ -268,6 +275,7 @@ def predict_folder(folder_path=PREDICT_DIR, model_path=MODEL_PATH):
             model, name = select_model(bundle, fruit)
             result = predict_loaded(path, bundle, model)
             result.update(status="ok", error="", fruit=fruit, model=name)
+            result["agent_decision"] = decide_next_action(result)
             result["total_ms"] = (perf_counter() - started) * 1000
         except Exception as error:
             result = {"image_path": str(path), "status": "failed", "error": str(error),
@@ -279,6 +287,8 @@ def predict_folder(folder_path=PREDICT_DIR, model_path=MODEL_PATH):
             print(f"[{index}/{len(paths)}] {path.name} → {result['fruit']} / {result['model']} / {result['ripeness']}{confidence}"
                   f" | 준비 {result['feature_ms']:.2f} + 예측 {result['prediction_ms']:.2f}"
                   f" | 전체 {result['total_ms']:.2f} ms")
+            decision = result["agent_decision"]
+            print(f"    에이전트: {decision['action']} — {decision['reason']}")
         else:
             print(f"[{index}/{len(paths)}] {path.name} → 실패 ({result['total_ms']:.2f} ms): {result['error']}")
     batch_ms = (perf_counter() - batch_started) * 1000
@@ -312,15 +322,91 @@ def predict_folder(folder_path=PREDICT_DIR, model_path=MODEL_PATH):
     print("첫 이미지 포함 측정이며 워밍업은 하지 않습니다. 준비 시간은 이미지 읽기·전처리·영역 분리·특징 구성을 포함합니다.")
     return results, summary
 
+def save_prediction_artifacts(results, output_csv, *, model_path=MODEL_PATH,
+                              source_folder=PREDICT_DIR):
+    """예측·에이전트 결과 CSV와 실행 환경 manifest를 저장합니다."""
+    output_csv = Path(output_csv)
+    if not output_csv.is_absolute():
+        output_csv = PROJECT_ROOT / output_csv
+    output_csv.parent.mkdir(parents=True, exist_ok=True)
+
+    fields = [
+        "image_path", "status", "fruit", "model", "ripeness",
+        "probabilities_json", "agent_decision_json", "error",
+        "preprocessing_ms_json", "feature_ms", "prediction_ms", "total_ms",
+    ]
+    with output_csv.open("w", encoding="utf-8-sig", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=fields)
+        writer.writeheader()
+        for result in results:
+            writer.writerow({
+                "image_path": result.get("image_path", ""),
+                "status": result.get("status", ""),
+                "fruit": result.get("fruit", ""),
+                "model": result.get("model", ""),
+                "ripeness": result.get("ripeness", ""),
+                "probabilities_json": json.dumps(
+                    result.get("probabilities"), ensure_ascii=False, sort_keys=True
+                ),
+                "agent_decision_json": json.dumps(
+                    result.get("agent_decision"), ensure_ascii=False, sort_keys=True
+                ),
+                "error": result.get("error", ""),
+                "preprocessing_ms_json": json.dumps(
+                    result.get("preprocessing_ms"), ensure_ascii=False, sort_keys=True
+                ),
+                "feature_ms": result.get("feature_ms", ""),
+                "prediction_ms": result.get("prediction_ms", ""),
+                "total_ms": result.get("total_ms", ""),
+            })
+
+    model_path = Path(model_path)
+    manifest = {
+        "created_at_utc": datetime.now(timezone.utc).isoformat(),
+        "source_folder": str(Path(source_folder).resolve()),
+        "model_bundle_path": str(model_path.resolve()),
+        "model_bundle_sha256": (
+            hashlib.sha256(model_path.read_bytes()).hexdigest()
+            if model_path.is_file() else None
+        ),
+        "models_used": sorted({
+            f"{row.get('fruit')}: {row.get('model')}"
+            for row in results if row.get("status") == "ok"
+        }),
+        "agent_policy": {
+            "confidence_threshold": DEFAULT_CONFIDENCE_THRESHOLD,
+            "human_review_classes": sorted(
+                [fruit, ripeness] for fruit, ripeness in REVIEW_REQUIRED_CLASSES
+            ),
+        },
+        "python_version": platform.python_version(),
+        "platform": platform.platform(),
+        "result_count": len(results),
+    }
+    manifest_path = output_csv.with_suffix(".manifest.json")
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return output_csv, manifest_path
+
 
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="폴더 전체 숙도 예측 및 시간 측정")
     parser.add_argument("folder", nargs="?", default=str(PREDICT_DIR), help="기본: data/predict_list")
+    parser.add_argument("--results-csv", type=Path,
+                        help="예측·에이전트 결과 CSV와 실행 manifest 저장 경로")
     args = parser.parse_args()
     try:
-        predict_folder(args.folder)
+        results, _ = predict_folder(args.folder)
+        if args.results_csv:
+            csv_path, manifest_path = save_prediction_artifacts(
+                results, args.results_csv, source_folder=args.folder
+            )
+            print(f"결과 CSV 저장: {csv_path}")
+            print(f"실행 manifest 저장: {manifest_path}")
     except (ValueError, OSError, RuntimeError) as error:
         print(f"\n예측 중단:\n{error}")
         raise SystemExit(1)
