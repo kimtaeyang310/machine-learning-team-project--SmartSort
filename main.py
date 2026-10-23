@@ -10,7 +10,7 @@
 from pathlib import Path
 import sys
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parent
 
 if __name__ == "__main__" and not __package__:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -23,23 +23,22 @@ def main():
     print("=" * 50)
     print("SmartSort - 농산물 숙도 판별 시스템")
     print("=" * 50)
-    print("1. 모델 학습 (기존 5개 + YOLOv8n-cls)")
-    print("2. 모델 평가")
+    print("1. 통합 9클래스 YOLO 학습 및 모름 기준 설정")
+    print("2. 통합 모델 평가 (F1·오거부·오수락·FPS)")
     print("3. 폴더 전체 숙도 예측 및 시간 측정")
-    print("4. 과일 종류 학습·전처리 비교 (개체 분리 / 과일별 95% 통과)")
-    print("5. 과일 종류·모르는 과일 평가 (저장된 기준 사용)")
+    print("4. 현재 통합 모델 및 모름 판정 기준 확인")
+    print("5. 이전 원본 보관 위치 및 실행 방법")
     print("0. 종료")
     print("=" * 50)
 
     choice = input("실행할 작업을 선택하세요: ").strip()
 
     if choice == "1":
-        from src.train import main as train_main
-
-        train_main([])
+        from src.joint import train
+        train()
 
     elif choice == "2":
-        from src.evaluate import evaluate
+        from src.joint import evaluate
 
         evaluate()
 
@@ -57,12 +56,18 @@ def main():
         print(f"결과: {csv_path}\n실행 정보: {manifest}")
 
     elif choice == "4":
-        from src.train_fruit_classifier import train
-        train()
+        import json
+        from src.joint import MODEL_DIR
+        import joblib
+        print((MODEL_DIR / "bundle.json").read_text(encoding="utf-8"))
+        policy = joblib.load(MODEL_DIR / "policy.joblib")
+        print(json.dumps({"method": policy["method"], "thresholds": policy["thresholds"],
+                          "reference_count": len(policy["reference"])}, ensure_ascii=False, indent=2))
 
     elif choice == "5":
-        from src.evaluate_fruit_classifier import evaluate as evaluate_fruit
-        evaluate_fruit()
+        print("이전 원본: archive/before_joint_nine_20261023")
+        print("해당 폴더로 이동한 뒤 기존 teamTC Python으로 main.py를 실행하세요.")
+        print("복원 및 보관 내용: archive/before_joint_nine_20261023/RESTORE.md")
 
     elif choice == "0":
         print("프로그램을 종료합니다.")

@@ -1,4 +1,5 @@
 # Python / 가상환경 / 캐시
+/archive/
 __pycache__/
 data/features/cache/
 models/.torch_cache/
