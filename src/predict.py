@@ -227,9 +227,14 @@ def predict_loaded(image_path, bundle, model):
             "total_ms": (finished - started) * 1000}
 
 
-def predict(image_path, model_path=MODEL_PATH, *, fruit=None, fruit_mode="image",
+def predict(image_path, model_path=MODEL_PATH, *, fruit=None, fruit_mode="joint",
             fruit_model_path=FRUIT_MODEL_PATH):
     """기본은 이미지 기반 판별. filename 모드는 기존 명시적 종류 입력을 지원합니다."""
+    if fruit_mode == "joint":
+        from src.joint import JointClassifier
+        result = JointClassifier().predict(image_path)
+        print("모르는 과일" if result["status"] == "unknown" else f"{result['fruit']} / {result['ripeness']}")
+        return result["ripeness"] if result["status"] == "ok" else "unknown"
     path = resolve_image_path(image_path)
     if fruit_mode not in {"image", "filename"}:
         raise ValueError("fruit_mode: image 또는 filename")
@@ -261,9 +266,12 @@ def infer_fruit(image_path):
     return found.pop()
 
 
-def predict_folder(folder_path=PREDICT_DIR, model_path=MODEL_PATH, *, fruit_mode="image",
+def predict_folder(folder_path=PREDICT_DIR, model_path=MODEL_PATH, *, fruit_mode="joint",
                    fruit_model_path=FRUIT_MODEL_PATH):
     """폴더 바로 아래 이미지 전체를 처리합니다. 실패 파일도 시간과 이유를 기록합니다."""
+    if fruit_mode == "joint":
+        from src.joint import predict_folder as predict_joint_folder
+        return predict_joint_folder(folder_path)
     folder = Path(folder_path)
     if not folder.is_absolute():
         folder = PROJECT_ROOT / folder
@@ -361,7 +369,7 @@ def predict_folder(folder_path=PREDICT_DIR, model_path=MODEL_PATH, *, fruit_mode
     print("첫 이미지 포함 측정이며 워밍업은 하지 않습니다. 준비 시간은 이미지 읽기·전처리·영역 분리·특징 구성을 포함합니다.")
     return results, summary
 
-def save_prediction_artifacts(results, output_csv, *, model_path=MODEL_PATH,
+def save_prediction_artifacts(results, output_csv, *, model_path=None,
                               source_folder=PREDICT_DIR):
     """예측·에이전트 결과 CSV와 실행 환경 manifest를 저장합니다."""
     output_csv = Path(output_csv)
@@ -374,6 +382,7 @@ def save_prediction_artifacts(results, output_csv, *, model_path=MODEL_PATH,
         "probabilities_json", "agent_decision_json", "error",
         "preprocessing_ms_json", "feature_ms", "prediction_ms", "total_ms",
         "fruit_identity_json", "fruit_identity_ms",
+        "nine_probabilities_json", "candidate_class", "rejection_score", "rejection_threshold",
     ]
     with output_csv.open("w", encoding="utf-8-sig", newline="") as file:
         writer = csv.DictWriter(file, fieldnames=fields)
@@ -400,8 +409,15 @@ def save_prediction_artifacts(results, output_csv, *, model_path=MODEL_PATH,
                 "total_ms": result.get("total_ms", ""),
                 "fruit_identity_json": json.dumps(result.get("fruit_identity"), ensure_ascii=False, sort_keys=True),
                 "fruit_identity_ms": result.get("fruit_identity_ms", ""),
+                "nine_probabilities_json": json.dumps(result.get("nine_probabilities"), ensure_ascii=False, sort_keys=True),
+                "candidate_class": result.get("candidate_class", ""),
+                "rejection_score": result.get("score", ""),
+                "rejection_threshold": result.get("threshold", ""),
             })
 
+    if model_path is None:
+        model_path = (PROJECT_ROOT / "models/joint_nine/model.pt"
+                      if any(r.get("model") == "yolov8n_cls_joint_nine" for r in results) else MODEL_PATH)
     model_path = Path(model_path)
     manifest = {
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -430,6 +446,12 @@ def save_prediction_artifacts(results, output_csv, *, model_path=MODEL_PATH,
         "failure_count": sum(row.get("status") == "failed" for row in results),
     }
     manifest_path = output_csv.with_suffix(".manifest.json")
+    if model_path == PROJECT_ROOT / "models/joint_nine/model.pt":
+        manifest["joint_bundle"] = json.loads((model_path.parent / "bundle.json").read_text(encoding="utf-8"))
+    if any(r.get("model") == "yolov8n_cls_joint_nine" for r in results):
+        from src.joint import timing_summary
+        manifest["timing"] = timing_summary(results)
+        manifest["timing_protocol"] = "warmup excluded; image read, preprocessing, YOLO and rejection included; agent, printing and saving excluded"
     manifest_path.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
@@ -446,8 +468,8 @@ if __name__ == "__main__":
                         default=PROJECT_ROOT / "outputs" / "predictions" /
                         (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ") + ".csv"),
                         help="예측·에이전트 결과 CSV와 실행 manifest 저장 경로 (기본 outputs/predictions)")
-    parser.add_argument("--fruit-mode", choices=("image", "filename"), default="image",
-                        help="기본 image. filename은 모름 판별 없는 기존 호환 모드")
+    parser.add_argument("--fruit-mode", choices=("joint", "image", "filename"), default="joint",
+                        help="기본 joint: 통합 YOLO. image/filename: 이전 방식의 명시적 호환 모드")
     parser.add_argument("--fruit-model", type=Path, default=FRUIT_MODEL_PATH)
     args = parser.parse_args()
     try:

@@ -1,0 +1,10 @@
+{
+  "format": 1,
+  "imgsz": 224,
+  "source": "C:\\Users\\user1\\OneDrive\\바탕 화면\\team_project\\SmartSort\\machine-learning-team-project--SmartSort\\experiments\\nine_class_comparison\\artifacts\\20261023T071957744434Z",
+  "sha256": {
+    "model.pt": "f8f5e97c6765b3ad8a9f20bb0f9e3b00e7edda9c4358b21e51f39aaed612babc",
+    "policy.joblib": "4c74369d7d5ae54d4ff5c0194ec1ab7aeb090805a38a9ad2bf48e58a75fb6750",
+    "split_manifest.json": "27b059915108339d23f18925a01bb617f29ca044e48044bdb92857a8ed21b85e"
+  }
+}

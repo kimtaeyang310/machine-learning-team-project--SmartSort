@@ -186,7 +186,7 @@ class UnknownDetectionTests(unittest.TestCase):
                  patch("src.predict.predict_loaded", return_value={"ripeness": "ripe", "probabilities": None,
                        "feature_ms": 1., "prediction_ms": 1., "total_ms": 2.}) as process, \
                  contextlib.redirect_stdout(io.StringIO()):
-                rows, summary = predict_folder(root)
+                rows, summary = predict_folder(root, fruit_mode="image")
             self.assertEqual([r["status"] for r in rows], ["unknown", "ok", "failed"])
             self.assertIsNone(rows[0]["ripeness"])
             self.assertEqual(summary["unknown_count"], 1)
@@ -203,7 +203,7 @@ class UnknownDetectionTests(unittest.TestCase):
              patch("src.predict.load_model") as load, \
              contextlib.redirect_stdout(io.StringIO()):
             cls.return_value.classify.return_value = {"accepted": False}
-            self.assertEqual(predict("photo.jpg"), "unknown")
+            self.assertEqual(predict("photo.jpg", fruit_mode="image"), "unknown")
             load.assert_not_called()
 
     def test_missing_identity_model_does_not_fall_back_to_filename(self):
@@ -213,7 +213,7 @@ class UnknownDetectionTests(unittest.TestCase):
             with patch("src.predict.FruitClassifier", side_effect=FileNotFoundError("missing")), \
                  patch("src.predict.load_model") as load:
                 with self.assertRaises(FileNotFoundError):
-                    predict_folder(root)
+                    predict_folder(root, fruit_mode="image")
                 load.assert_not_called()
 
 
