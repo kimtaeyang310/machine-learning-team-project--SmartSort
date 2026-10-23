@@ -106,7 +106,7 @@ class FruitModelTests(unittest.TestCase):
              patch("src.predict.resolve_image_path", return_value=Path("photo.jpg")), \
              patch("src.predict.extract_image_features", return_value=np.array([[0]])), \
              contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(predict("photo.jpg", fruit="tomato"), "overripe")
+            self.assertEqual(predict("photo.jpg", fruit="tomato", fruit_mode="filename"), "overripe")
         bundle["models"]["banana"]["model"].predict.assert_not_called()
 
     def test_changed_split_with_same_count_rejected(self):

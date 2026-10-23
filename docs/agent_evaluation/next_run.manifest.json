@@ -1,0 +1,23 @@
+{
+  "created_at_utc": "2026-10-22T10:15:45.186423+00:00",
+  "source_folder": "C:\\Users\\user1\\OneDrive\\바탕 화면\\team_project\\SmartSort\\machine-learning-team-project--SmartSort\\data\\predict_list",
+  "model_bundle_path": "C:\\Users\\user1\\OneDrive\\바탕 화면\\team_project\\SmartSort\\machine-learning-team-project--SmartSort\\models\\ripeness_by_fruit.joblib",
+  "model_bundle_sha256": "d43e9cd1ad16e81b9b7cefaf8bbd51931d398780c077895e3afdcf9955c810f0",
+  "models_used": [
+    "banana: yolov8n_cls",
+    "mandarin: yolov8n_cls",
+    "tomato: yolov8n_cls"
+  ],
+  "agent_policy": {
+    "confidence_threshold": 0.7,
+    "human_review_classes": [
+      [
+        "tomato",
+        "overripe"
+      ]
+    ]
+  },
+  "python_version": "3.14.7",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "result_count": 47
+}

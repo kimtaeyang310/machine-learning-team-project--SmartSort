@@ -26,6 +26,8 @@ def main():
     print("1. 모델 학습 (기존 5개 + YOLOv8n-cls)")
     print("2. 모델 평가")
     print("3. 폴더 전체 숙도 예측 및 시간 측정")
+    print("4. 과일 종류 학습·전처리 비교 (개체 분리 / 과일별 95% 통과)")
+    print("5. 과일 종류·모르는 과일 평가 (저장된 기준 사용)")
     print("0. 종료")
     print("=" * 50)
 
@@ -42,17 +44,31 @@ def main():
         evaluate()
 
     elif choice == "3":
-        from src.predict import predict_folder, PREDICT_DIR
+        from datetime import datetime, timezone
+        from src.predict import predict_folder, PREDICT_DIR, save_prediction_artifacts
 
         folder = input("예측 폴더 경로 (Enter: data/predict_list): ").strip().strip('"')
 
-        predict_folder(folder or PREDICT_DIR)
+        source = folder or PREDICT_DIR
+        results, _ = predict_folder(source)
+        target = Path(__file__).resolve().parent / "outputs" / "predictions" / (
+            datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ") + ".csv")
+        csv_path, manifest = save_prediction_artifacts(results, target, source_folder=source)
+        print(f"결과: {csv_path}\n실행 정보: {manifest}")
+
+    elif choice == "4":
+        from src.train_fruit_classifier import train
+        train()
+
+    elif choice == "5":
+        from src.evaluate_fruit_classifier import evaluate as evaluate_fruit
+        evaluate_fruit()
 
     elif choice == "0":
         print("프로그램을 종료합니다.")
 
     else:
-        print("잘못된 선택입니다. 0~3 중에서 선택하세요.")
+        print("잘못된 선택입니다. 0~5 중에서 선택하세요.")
 
 
 if __name__ == "__main__":
