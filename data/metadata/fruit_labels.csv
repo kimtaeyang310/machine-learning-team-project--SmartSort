@@ -166,8 +166,8 @@ tomato,T05,2026-10-07,overripe,T05_20261007,train
 tomato,T05,2026-10-08,overripe,T05_20261008,train
 tomato,T06,2026-10-08,ripe,T06_20261008,test
 tomato,T07,2026-10-08,ripe,T07_20261008,test
-tomato,T08,2026-10-08,overripe,T08_20261008,test
-tomato,T09,2026-10-08,overripe,T09_20261008,test
+tomato,T08,2026-10-08,ripe,T08_20261008,train
+tomato,T09,2026-10-08,ripe,T09_20261008,test
 tomato,T10,2026-10-08,ripe,T10_20261008,test
 tomato,T11,2026-10-12,unripe,T11_20261012,train
 tomato,T12,2026-10-12,unripe,T12_20261012,train
