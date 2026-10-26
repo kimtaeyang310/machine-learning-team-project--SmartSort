@@ -11,6 +11,8 @@ import torch
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL_DIR = ROOT / "models" / "joint_nine"
+MODEL_NAME = "yolo26n_cls_joint_nine"
+PRETRAINED_WEIGHTS = ROOT / "models" / "pretrained" / "yolo26n-cls.pt"
 PREDICT_DIR = ROOT / "data" / "predict_list"
 EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
 
@@ -29,6 +31,7 @@ class JointClassifier:
         from src.joint_core import NinePredictor
         self.directory = resolve(model_dir)
         metadata = json.loads((self.directory / "bundle.json").read_text(encoding="utf-8"))
+        self.model_name = metadata.get("model_name", "yolov8n_cls_joint_nine")
         for name, expected in metadata["sha256"].items():
             actual = hashlib.sha256((self.directory / name).read_bytes()).hexdigest()
             if actual != expected:
@@ -52,7 +55,7 @@ class JointClassifier:
                         for f, s in [label.split("_", 1)] if f == fruit}
         result["nine_probabilities"] = result["probabilities"]
         result.update(image_path=str(path), fruit=fruit if accepted else "unknown",
-                      ripeness=stage if accepted else None, model="yolov8n_cls_joint_nine",
+                      ripeness=stage if accepted else None, model=getattr(self, "model_name", "yolov8n_cls_joint_nine"),
                       probabilities=stage_scores if accepted else None, error="")
         result["fruit_identity"] = {"accepted": accepted, "candidate_fruit": fruit,
             "method": result["method"], "score": result["score"],
@@ -89,7 +92,7 @@ def predict_folder(folder_path=PREDICT_DIR, model_dir=MODEL_DIR):
             result = classifier.predict(path)
         except Exception as error:
             result = {"image_path": str(path), "status": "failed", "error": str(error),
-                      "model": "yolov8n_cls_joint_nine",
+                      "model": classifier.model_name,
                       "total_ms": (perf_counter() - start) * 1000}
         results.append(result)
         label = (f"{result['fruit']} / {result['ripeness']}" if result["status"] == "ok"
@@ -112,7 +115,7 @@ def timing_summary(rows):
             "fps": (counts["ok"] + counts["unknown"]) * 1000 / max(float(times.sum()), 1e-12)}
 
 
-def publish(checkpoint, policy, manifest, origin, destination=MODEL_DIR):
+def publish(checkpoint, policy, manifest, origin, destination=MODEL_DIR, *, model_name=MODEL_NAME):
     """Install a version directory and retain its predecessor before promotion."""
     from src.joint_core import dump, sha
     destination = resolve(destination)
@@ -121,6 +124,7 @@ def publish(checkpoint, policy, manifest, origin, destination=MODEL_DIR):
     for source, name in [(checkpoint, "model.pt"), (policy, "policy.joblib"), (manifest, "split_manifest.json")]:
         shutil.copy2(source, staging / name)
     dump(staging / "bundle.json", {"format": 1, "imgsz": 224, "source": str(origin),
+        "model_name": model_name,
         "sha256": {name: sha(staging / name) for name in ("model.pt", "policy.joblib", "split_manifest.json")}})
     JointClassifier(staging)  # Validate loadability before switching.
     if destination.exists():
@@ -155,7 +159,7 @@ def train(epochs=6):
     dump(run / "config.json", config)
     torch.set_num_threads(4)
     data = materialize(samples, run / "dataset")
-    checkpoint = fit(data, run / "training", ROOT / "yolov8n-cls.pt", config)
+    checkpoint = fit(data, run / "training", PRETRAINED_WEIGHTS, config)
     predictor = NinePredictor(checkpoint, 224)
     calibrate_nine(predictor, samples, run)
     publish(checkpoint, run / "nine_rejection_policy.joblib", run / "split_manifest.json", run)
@@ -181,7 +185,7 @@ def evaluate():
             result = classifier.predict(ROOT / s["path"])
         except Exception as error:
             result = {"image_path": str(ROOT / s["path"]), "status": "failed", "error": str(error),
-                      "model": "yolov8n_cls_joint_nine",
+                      "model": classifier.model_name,
                       "total_ms": (perf_counter() - start) * 1000}
         result.update(truth_fruit=s["fruit"], truth_ripeness=s["ripeness"],
                       truth_class=f"{s['fruit']}_{s['ripeness']}")

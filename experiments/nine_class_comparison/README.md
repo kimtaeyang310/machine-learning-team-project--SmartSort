@@ -25,6 +25,29 @@ CSV에서 두 개체의 변경을 확인하고 이전 manifest의 다른 분할�
 출력은 `artifacts/yolo26n_relabel_t08_t09_20261026/`에 별도 저장합니다.
 기존 결과는 보존되며 Test 구성이 바뀌었으므로 이전 점수와 직접 비교할 수 없습니다.
 
+과숙 토마토 6장 교환 실험:
+
+```powershell
+& .venv-yolo/Scripts/python.exe experiments/nine_class_comparison/compare_yolo26.py --tomato-swap
+```
+
+이전 재라벨 실행의 manifest를 기준으로 T17·T18·T19·T20·T21·T23을 Train에 넣고
+T27~T32를 Test로 옮깁니다. CSV의 라벨·분할과 일치하는지 확인합니다.
+T28은 이전 Calibration이었으므로 Calibration에서도 제외됩니다.
+Train 1,234장, Calibration 479장, Selection 466장, Test 528장입니다.
+두 모델 모두 사전학습 가중치부터 재학습하며 결과는 `artifacts/yolo26n_tomato_swap_20261026/`에 저장합니다.
+이전 Test 오류에 따라 분할을 수정한 개발 실험으로, 독립 Test 성능 향상을 증명하는 실험은 아닙니다.
+
+추가로 T27·T29를 Train으로, T33·T34를 Test로 교환한 실험:
+
+```powershell
+& .venv-yolo/Scripts/python.exe experiments/nine_class_comparison/compare_yolo26.py --tomato-swap-two
+```
+
+직전 6장 교환 manifest의 나머지 분할을 유지하고 변경된 4장만 반영합니다.
+두 모델을 새로 학습하며 `artifacts/yolo26n_tomato_swap_two_20261026/`에 결과를 보존합니다.
+오류 분석 후 Test를 수정한 개발 실험이라는 해석상 한계는 동일합니다.
+
 기존 main.py, src, 기본 모델과 원본 데이터는 수정하지 않습니다.
 이 폴더 안에만 실험 코드, 데이터 복사본, 체크포인트, 설정, 결과를 저장합니다.
 출력 경로를 이 폴더 밖으로 지정하면 중단합니다.

@@ -1,6 +1,6 @@
 # SmartSort — 통합 과일·숙도 분류
 
-기본 방식은 **YOLOv8n-cls 한 개 + 특징 거리 기반 모름 판정**입니다.
+기본 방식은 **YOLO26n-cls 한 개 + 특징 거리 기반 모름 판정**입니다.
 바나나·귤·토마토 각각 미숙/적숙/과숙의 총 9클래스를 한 번에 예측합니다.
 YOLO의 분류 직전 특징을 학습 기준 특징들과 비교하고 과일별 거리 기준을 넘으면
 **모르는 과일**로 표시하며 숙도 결과는 숨깁니다. 종류 분류용 MobileNet이나 별도 숙도 신경망은 로딩하지 않습니다.
@@ -31,10 +31,13 @@ YOLO의 분류 직전 특징을 학습 기준 특징들과 비교하고 과일�
 ## 채택 모델과 측정
 
 models/joint_nine에 model.pt, policy.joblib, split_manifest.json, bundle.json을 함께 저장합니다.
-채택 출처는 experiments/nine_class_comparison/artifacts/20261023T071957744434Z입니다.
-실험 당시 통합 방식은 39.70 FPS였으며 실행 환경에 따라 달라집니다.
+채택 출처는 experiments/nine_class_comparison/artifacts/yolo26n_tomato_swap_two_20261026입니다.
+해당 실행의 YOLO26 체크포인트·보정 정책·분할 manifest를 함께 채택했습니다.
+재학습 사전학습 가중치는 models/pretrained/yolo26n-cls.pt를 사용합니다.
+실험 당시 통합 방식은 41.48 FPS였으며 실행 환경에 따라 달라집니다.
 FPS에는 이미지 읽기·전처리·YOLO·모름 거리 판정을 포함합니다. 모델 로딩·워밍업·에이전트 정책·출력·저장은 제외합니다.
-이전 보고서 40.43 FPS는 최초 실험 측정값입니다.
+채택 실험에서 전체 Macro F1은 0.7920, 알려진 과일 오거부율은 2.46%, 미지 과일 오수락은 0/40장이었습니다.
+이전 운영 모델은 전환 시 outputs/joint_nine/previous_*에 자동 백업됩니다.
 
 과일별 Calibration 사진의 약 95% 종류 정답·수락 목표를 사용하고,
 Selection의 포도·레몬 오수락을 우선 줄이는 기준을 선택합니다.

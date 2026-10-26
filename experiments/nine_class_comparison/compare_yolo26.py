@@ -13,16 +13,45 @@ import ultralytics
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--relabel-t08-t09', action='store_true')
+    parser.add_argument('--tomato-swap', action='store_true')
+    parser.add_argument('--tomato-swap-two', action='store_true')
     args = parser.parse_args()
+    if sum((args.relabel_t08_t09, args.tomato_swap, args.tomato_swap_two)) > 1:
+        parser.error('Choose only one dataset revision')
+    retrain_both = args.relabel_t08_t09 or args.tomato_swap or args.tomato_swap_two
     baseline = lab.HERE / "artifacts/20261023T071957744434Z"
-    run = lab.HERE / ("artifacts/yolo26n_relabel_t08_t09_20261026" if args.relabel_t08_t09
+    run = lab.HERE / ("artifacts/yolo26n_tomato_swap_two_20261026" if args.tomato_swap_two else
+                      "artifacts/yolo26n_tomato_swap_20261026" if args.tomato_swap else
+                      "artifacts/yolo26n_relabel_t08_t09_20261026" if args.relabel_t08_t09
                       else "artifacts/yolo26n_comparison_20261026")
     run.mkdir(parents=True, exist_ok=True)
     before = lab.source_files()
     lab.dump(run / "source_before.json", before)
     samples = json.loads((baseline / "split_manifest.json").read_text(encoding="utf-8"))
     changes = []
-    if args.relabel_t08_t09:
+    if args.tomato_swap or args.tomato_swap_two:
+        previous = 'yolo26n_tomato_swap_20261026' if args.tomato_swap_two else 'yolo26n_relabel_t08_t09_20261026'
+        samples = json.loads((lab.HERE / 'artifacts' / previous / 'split_manifest.json').read_text(encoding='utf-8'))
+        incoming = {f'tomato:T{i:02d}' for i in ((27,29) if args.tomato_swap_two else (17,18,19,20,21,23))}
+        outgoing = {f'tomato:T{i:02d}' for i in ((33,34) if args.tomato_swap_two else range(27,33))}
+        with (lab.ROOT / 'data/metadata/fruit_labels.csv').open(encoding='utf-8-sig', newline='') as f:
+            metadata = {(r['fruit'], r['group_id']): r for r in csv.DictReader(f)}
+        for sample in samples:
+            if sample['fruit'] != 'tomato':
+                continue
+            row = metadata[(sample['fruit'], sample['source_group'])]
+            phase = 'train' if sample['group'] in incoming else 'test' if sample['group'] in outgoing else sample['phase']
+            expected_split = 'test' if phase == 'test' else 'train'
+            if row['split'] != expected_split or row['ripeness'] != sample['ripeness']:
+                raise ValueError(f'Unexpected metadata change: {row}')
+            if phase != sample['phase']:
+                changes.append({'path': sample['path'], 'old_ripeness': sample['ripeness'],
+                                'old_phase': sample['phase'], 'ripeness': row['ripeness'], 'phase': phase})
+                sample['phase'] = phase
+        expected_changes = 4 if args.tomato_swap_two else 12
+        if len(changes) != expected_changes:
+            raise ValueError(f'Expected {expected_changes} swapped photos, got {len(changes)}')
+    elif args.relabel_t08_t09:
         with (lab.ROOT / 'data/metadata/fruit_labels.csv').open(encoding='utf-8-sig', newline='') as f:
             metadata = {(r['fruit'], r['group_id']): r for r in csv.DictReader(f)}
         for sample in samples:
@@ -45,6 +74,9 @@ def main():
         hashes.setdefault(sample['sha256'], set()).add(sample['phase'])
     if any(len(v) > 1 for v in [*groups.values(), *hashes.values()]):
         raise ValueError('Specimen or image leakage')
+    if (run / 'split_manifest.json').exists():
+        if json.loads((run / 'split_manifest.json').read_text(encoding='utf-8')) != samples:
+            raise ValueError('Existing run has a different dataset; use a new output directory')
     lab.dump(run / 'dataset_changes.json', changes)
     print('Split counts:', Counter(s['phase'] for s in samples), flush=True)
     lab.dump(run / "split_manifest.json", samples)
@@ -68,7 +100,7 @@ def main():
     data = lab.materialize(samples, run / "datasets/nine")
     checkpoint = lab.fit(data, run / "training/nine", weights, config)
     v8_checkpoint = baseline / 'training/nine/weights/last.pt'
-    if args.relabel_t08_t09:
+    if retrain_both:
         v8_checkpoint = lab.fit(data, run / 'training/nine_v8', baseline / 'snapshot/pretrained.pt', config)
     lab.torch.set_num_threads(4)
     predictors, loading = {}, {}
@@ -97,7 +129,9 @@ def main():
     lines = ["# YOLO26n-cls 교체 비교 실험", "",
         "기존 YOLOv8n-cls 9클래스 통합 모델과 YOLO26n-cls를 비교했습니다.",
         f"동일 Train {sum(s['phase']=='train' for s in samples):,}장, 224 입력, batch 16, CPU, seed 42, 6 epochs, last.pt 사용.",
-        "두 모델 모두 변경된 데이터로 사전학습 가중치부터 재학습했습니다." if args.relabel_t08_t09 else "v8은 기존 완료 체크포인트를 재사용했습니다.",
+        "두 모델 모두 변경된 데이터로 사전학습 가중치부터 재학습했습니다." if retrain_both else "v8은 기존 완료 체크포인트를 재사용했습니다.",
+        "T27·T29를 Train으로, T33·T34를 Test로 이동했습니다. 이전 6장 교환 실험의 나머지 분할과 라벨은 유지했습니다." if args.tomato_swap_two else
+        "T17·T18·T19·T20·T21·T23을 Train으로, T27~T32를 Test로 이동했습니다. T28은 이전 Calibration에서 제외했습니다. T08·T09 적숙 라벨과 나머지 분할은 유지했습니다." if args.tomato_swap else
         "T08·T09는 적숙으로 수정하고 T08의 10장을 Test에서 Train으로 옮겼습니다. 나머지 분할은 이전 manifest를 유지했습니다." if changes else "기존 분할 유지.",
         "이전 Test 오류를 확인한 뒤 라벨과 분할을 바꾼 회귀 실험이므로 이전 점수와 직접 비교하거나 독립 일반화 성능으로 해석할 수 없습니다." if changes else "기존 Test 회귀 비교입니다.",
         "각 모델의 ImageNet 사전학습 가중치를 사용하며 optimizer=auto 등 기존 실험 설정을 유지했습니다.",

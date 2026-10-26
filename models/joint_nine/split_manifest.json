@@ -5582,97 +5582,97 @@
   {
     "path": "data/raw/1008tomato/20261008_tomato_T08_indoor_01.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T08",
     "source_group": "T08_20261008",
-    "phase": "test",
+    "phase": "train",
     "sha256": "5d858e35be05cc53e0ea5556f74c918a39c6aa6330ae36889fe61d8d7936a834"
   },
   {
     "path": "data/raw/1008tomato/20261008_tomato_T08_indoor_02.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T08",
     "source_group": "T08_20261008",
-    "phase": "test",
+    "phase": "train",
     "sha256": "0ff67d937c4f4b40da9f86fc4e542dbfa4acbb273076ed9f516cbdef50bd081a"
   },
   {
     "path": "data/raw/1008tomato/20261008_tomato_T08_indoor_03.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T08",
     "source_group": "T08_20261008",
-    "phase": "test",
+    "phase": "train",
     "sha256": "b59cb41fc94c552d1a0511923bd816358d8bdb8dd805383635f9b0010fd5a1eb"
   },
   {
     "path": "data/raw/1008tomato/20261008_tomato_T08_indoor_04.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T08",
     "source_group": "T08_20261008",
-    "phase": "test",
+    "phase": "train",
     "sha256": "8ed8e5fa89c89d923e0aa6701890c1a6d9760fea848c85837a69ac10b61c5f87"
   },
   {
     "path": "data/raw/1008tomato/20261008_tomato_T08_indoor_05.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T08",
     "source_group": "T08_20261008",
-    "phase": "test",
+    "phase": "train",
     "sha256": "d558c8634a622a278aaadbb934d8b37bb2d3f1b1f9302c8b343108271b355d1e"
   },
   {
     "path": "data/raw/1008tomato/20261008_tomato_T08_indoor_dim_06.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T08",
     "source_group": "T08_20261008",
-    "phase": "test",
+    "phase": "train",
     "sha256": "4cace921a387f9a203e86bdd3a8bfff1adf2304a2f07fc83bac1ff70735a1cf5"
   },
   {
     "path": "data/raw/1008tomato/20261008_tomato_T08_indoor_dim_07.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T08",
     "source_group": "T08_20261008",
-    "phase": "test",
+    "phase": "train",
     "sha256": "580a93238b22458f76312929edb809d016b0167f869f1408c3cd68f11828e17c"
   },
   {
     "path": "data/raw/1008tomato/20261008_tomato_T08_indoor_dim_08.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T08",
     "source_group": "T08_20261008",
-    "phase": "test",
+    "phase": "train",
     "sha256": "464b5517aada63bc270fd773e324668a7429a476f3fb13636002225fc98138ee"
   },
   {
     "path": "data/raw/1008tomato/20261008_tomato_T08_indoor_dim_09.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T08",
     "source_group": "T08_20261008",
-    "phase": "test",
+    "phase": "train",
     "sha256": "beb57c7b88a379c59ba1ba20460dafc8fceee163314ddc1ffcaa42ee7618ff79"
   },
   {
     "path": "data/raw/1008tomato/20261008_tomato_T08_indoor_dim_10.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T08",
     "source_group": "T08_20261008",
-    "phase": "test",
+    "phase": "train",
     "sha256": "3a0b4baa1497fada635f022143e58c88dc6d71825d9c080e76c72827edbeca79"
   },
   {
     "path": "data/raw/1008tomato/20261008_tomato_T09_indoor_01.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T09",
     "source_group": "T09_20261008",
     "phase": "test",
@@ -5681,7 +5681,7 @@
   {
     "path": "data/raw/1008tomato/20261008_tomato_T09_indoor_02.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T09",
     "source_group": "T09_20261008",
     "phase": "test",
@@ -5690,7 +5690,7 @@
   {
     "path": "data/raw/1008tomato/20261008_tomato_T09_indoor_03.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T09",
     "source_group": "T09_20261008",
     "phase": "test",
@@ -5699,7 +5699,7 @@
   {
     "path": "data/raw/1008tomato/20261008_tomato_T09_indoor_04.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T09",
     "source_group": "T09_20261008",
     "phase": "test",
@@ -5708,7 +5708,7 @@
   {
     "path": "data/raw/1008tomato/20261008_tomato_T09_indoor_05.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T09",
     "source_group": "T09_20261008",
     "phase": "test",
@@ -5717,7 +5717,7 @@
   {
     "path": "data/raw/1008tomato/20261008_tomato_T09_indoor_dim_06.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T09",
     "source_group": "T09_20261008",
     "phase": "test",
@@ -5726,7 +5726,7 @@
   {
     "path": "data/raw/1008tomato/20261008_tomato_T09_indoor_dim_07.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T09",
     "source_group": "T09_20261008",
     "phase": "test",
@@ -5735,7 +5735,7 @@
   {
     "path": "data/raw/1008tomato/20261008_tomato_T09_indoor_dim_08.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T09",
     "source_group": "T09_20261008",
     "phase": "test",
@@ -5744,7 +5744,7 @@
   {
     "path": "data/raw/1008tomato/20261008_tomato_T09_indoor_dim_09.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T09",
     "source_group": "T09_20261008",
     "phase": "test",
@@ -5753,7 +5753,7 @@
   {
     "path": "data/raw/1008tomato/20261008_tomato_T09_indoor_dim_10.jpg",
     "fruit": "tomato",
-    "ripeness": "overripe",
+    "ripeness": "ripe",
     "group": "tomato:T09",
     "source_group": "T09_20261008",
     "phase": "test",
@@ -6809,7 +6809,7 @@
     "ripeness": "overripe",
     "group": "tomato:T17",
     "source_group": "T17_20261016",
-    "phase": "test",
+    "phase": "train",
     "sha256": "3c53dfe4019b3228642f9f11b12ac09a9b926d5a3b99a97ee29d453e909fbdbd"
   },
   {
@@ -6818,7 +6818,7 @@
     "ripeness": "overripe",
     "group": "tomato:T18",
     "source_group": "T18_20261016",
-    "phase": "test",
+    "phase": "train",
     "sha256": "08a506ff1ec5e545f798468151312ec119691fdea3810bdd7f39489f7dec364d"
   },
   {
@@ -6827,7 +6827,7 @@
     "ripeness": "overripe",
     "group": "tomato:T19",
     "source_group": "T19_20261016",
-    "phase": "test",
+    "phase": "train",
     "sha256": "096aa995570fe313cd3d69a0681de090d74838a769a22d28b9db5afde98fa00c"
   },
   {
@@ -6836,7 +6836,7 @@
     "ripeness": "overripe",
     "group": "tomato:T20",
     "source_group": "T20_20261016",
-    "phase": "test",
+    "phase": "train",
     "sha256": "03386a29505f4d596bfc500ea7fe88428ae5b6a396949278db370b1e5d6ea42d"
   },
   {
@@ -6845,7 +6845,7 @@
     "ripeness": "overripe",
     "group": "tomato:T21",
     "source_group": "T21_20261016",
-    "phase": "test",
+    "phase": "train",
     "sha256": "12ec6e893ac47506032ec2f0280424ff664faa50be0779d386e422af05b40e9d"
   },
   {
@@ -6863,7 +6863,7 @@
     "ripeness": "overripe",
     "group": "tomato:T23",
     "source_group": "T23_20261016",
-    "phase": "test",
+    "phase": "train",
     "sha256": "e9e8f68e437dd805ddc9b4127320f489b0cba95f84fa215120c3a4bff023aadb"
   },
   {
@@ -6908,7 +6908,7 @@
     "ripeness": "overripe",
     "group": "tomato:T28",
     "source_group": "T28_20261016",
-    "phase": "calibration",
+    "phase": "test",
     "sha256": "cad9d8a4d34aa7a022d7d2c482d7a17dda0d03c31ac03d3c1e1b3067d47c5a9c"
   },
   {
@@ -6926,7 +6926,7 @@
     "ripeness": "overripe",
     "group": "tomato:T30",
     "source_group": "T30_20261016",
-    "phase": "train",
+    "phase": "test",
     "sha256": "0980dfb4ff21193834050fb83dd5079b8909a0c4931731a521ac8ecbe7fe9ebd"
   },
   {
@@ -6935,7 +6935,7 @@
     "ripeness": "overripe",
     "group": "tomato:T31",
     "source_group": "T31_20261016",
-    "phase": "train",
+    "phase": "test",
     "sha256": "e0bb40075921828564f62372c5eddedd90e03beac4db5ea50d6eca5819b83ee0"
   },
   {
@@ -6944,7 +6944,7 @@
     "ripeness": "overripe",
     "group": "tomato:T32",
     "source_group": "T32_20261016",
-    "phase": "train",
+    "phase": "test",
     "sha256": "9726ddb0bb0fe1414bfa1cbd4b885b78b31b071aaae1807ff223097459814425"
   },
   {
@@ -6953,7 +6953,7 @@
     "ripeness": "overripe",
     "group": "tomato:T33",
     "source_group": "T33_20261016",
-    "phase": "train",
+    "phase": "test",
     "sha256": "9cd620814cdc4265dd1ef47558ebc94134a40860958d2e75bf3a7594ff66f097"
   },
   {
@@ -6962,7 +6962,7 @@
     "ripeness": "overripe",
     "group": "tomato:T34",
     "source_group": "T34_20261016",
-    "phase": "train",
+    "phase": "test",
     "sha256": "7990659b76797536110a2dbae8d4bc72184f951cba49c41a10a22236a2966136"
   },
   {
