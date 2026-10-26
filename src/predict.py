@@ -417,7 +417,7 @@ def save_prediction_artifacts(results, output_csv, *, model_path=None,
 
     if model_path is None:
         model_path = (PROJECT_ROOT / "models/joint_nine/model.pt"
-                      if any(r.get("model") == "yolov8n_cls_joint_nine" for r in results) else MODEL_PATH)
+                      if any(str(r.get("model", "")).endswith("_cls_joint_nine") for r in results) else MODEL_PATH)
     model_path = Path(model_path)
     manifest = {
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -448,7 +448,7 @@ def save_prediction_artifacts(results, output_csv, *, model_path=None,
     manifest_path = output_csv.with_suffix(".manifest.json")
     if model_path == PROJECT_ROOT / "models/joint_nine/model.pt":
         manifest["joint_bundle"] = json.loads((model_path.parent / "bundle.json").read_text(encoding="utf-8"))
-    if any(r.get("model") == "yolov8n_cls_joint_nine" for r in results):
+    if any(str(r.get("model", "")).endswith("_cls_joint_nine") for r in results):
         from src.joint import timing_summary
         manifest["timing"] = timing_summary(results)
         manifest["timing_protocol"] = "warmup excluded; image read, preprocessing, YOLO and rejection included; agent, printing and saving excluded"

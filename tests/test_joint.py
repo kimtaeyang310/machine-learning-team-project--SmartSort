@@ -24,6 +24,7 @@ class JointTests(unittest.TestCase):
     def predictor(self, accepted):
         classifier = object.__new__(JointClassifier)
         classifier.sha = "test"
+        classifier.model_name = "yolo26n_cls_joint_nine"
         classifier.engine = Mock()
         classifier.engine.predict.return_value = {
             "status": "ok" if accepted else "unknown", "candidate_fruit": "banana",
@@ -42,6 +43,7 @@ class JointTests(unittest.TestCase):
 
     def test_joint_probability_is_not_renormalized(self):
         result = self.predictor(True).predict("unused.jpg")
+        self.assertEqual(result["model"], "yolo26n_cls_joint_nine")
         self.assertEqual(result["probabilities"]["ripe"], .6)
         self.assertEqual(result["agent_decision"]["action"], "retake")
         self.assertEqual(result["nine_probabilities"]["tomato_ripe"], .2)
