@@ -1,0 +1,10 @@
+{
+  "format": 1,
+  "imgsz": 224,
+  "source": "C:\\Users\\user1\\OneDrive\\바탕 화면\\team_project\\SmartSort\\machine-learning-team-project--SmartSort\\outputs\\joint_nine\\training_20261026T003957098186Z",
+  "sha256": {
+    "model.pt": "3542cb28cc2e114fae9ce3a763e17d264948a4d05145d492f1de01577d9509b3",
+    "policy.joblib": "4c74369d7d5ae54d4ff5c0194ec1ab7aeb090805a38a9ad2bf48e58a75fb6750",
+    "split_manifest.json": "27b059915108339d23f18925a01bb617f29ca044e48044bdb92857a8ed21b85e"
+  }
+}

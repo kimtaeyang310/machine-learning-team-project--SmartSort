@@ -1,5 +1,30 @@
 # 별도 실험: 9클래스 YOLO와 현재 방식 비교
 
+## YOLO26n-cls 교체 비교
+
+`compare_yolo26.py`는 기존 완료 실행 `20261023T071957744434Z`의 YOLOv8n-cls 통합 모델과
+동일한 분할·학습 조건으로 YOLO26n-cls를 학습합니다. 두 모델의 모름 판정을 각각 보정하고
+같은 실행에서 Test 품질과 CPU 처리 시간을 다시 비교합니다.
+
+```powershell
+& .venv-yolo/Scripts/python.exe experiments/nine_class_comparison/compare_yolo26.py
+```
+
+결과: `artifacts/yolo26n_comparison_20261026/report.md` 및 `report.json`.
+공식 사전학습 가중치는 최초 실행 시 다운로드가 필요합니다.
+완료된 6 epoch 체크포인트는 재사용합니다. 기존 실행 폴더와 데이터가 있어야 하며
+사진 내용 해시가 달라지면 평가를 중단합니다.
+
+T08·T09의 적숙 재라벨 및 T08의 Train 이동을 반영해 두 모델을 모두 재학습하려면:
+
+```powershell
+& .venv-yolo/Scripts/python.exe experiments/nine_class_comparison/compare_yolo26.py --relabel-t08-t09
+```
+
+CSV에서 두 개체의 변경을 확인하고 이전 manifest의 다른 분할은 유지합니다.
+출력은 `artifacts/yolo26n_relabel_t08_t09_20261026/`에 별도 저장합니다.
+기존 결과는 보존되며 Test 구성이 바뀌었으므로 이전 점수와 직접 비교할 수 없습니다.
+
 기존 main.py, src, 기본 모델과 원본 데이터는 수정하지 않습니다.
 이 폴더 안에만 실험 코드, 데이터 복사본, 체크포인트, 설정, 결과를 저장합니다.
 출력 경로를 이 폴더 밖으로 지정하면 중단합니다.

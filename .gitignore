@@ -11,6 +11,9 @@ models/.torch_cache/
 venv/
 ENV/
 
+#models의 .pt파일 공유
+!models/**/*.pt
+
 # 개발 툴 및 IDE 설정
 .vscode/
 .idea/
@@ -43,6 +46,12 @@ env_test.png
 !data/raw/**/*.JPG
 !data/raw/**/*.JPEG
 !data/raw/**/*.PNG
+!data/**/*.jpg
+!data/**/*.jpeg
+!data/**/*.png
+!data/**/*.JPG
+!data/**/*.JPEG
+!data/**/*.PNG
 
 # outputs 폴더는 접근 가능하게 두고, 내부 결과물은 기본적으로 무시
 !/outputs/
