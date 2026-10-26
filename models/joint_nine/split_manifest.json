@@ -4772,7 +4772,7 @@
   {
     "path": "data/raw/1008mandarin/20261008_mandarin_M09_indoor_01.jpg",
     "fruit": "mandarin",
-    "ripeness": "unripe",
+    "ripeness": "ripe",
     "group": "mandarin:M09",
     "source_group": "M09_20261008",
     "phase": "test",
@@ -4781,7 +4781,7 @@
   {
     "path": "data/raw/1008mandarin/20261008_mandarin_M09_indoor_02.jpg",
     "fruit": "mandarin",
-    "ripeness": "unripe",
+    "ripeness": "ripe",
     "group": "mandarin:M09",
     "source_group": "M09_20261008",
     "phase": "test",
@@ -4790,7 +4790,7 @@
   {
     "path": "data/raw/1008mandarin/20261008_mandarin_M09_indoor_03.jpg",
     "fruit": "mandarin",
-    "ripeness": "unripe",
+    "ripeness": "ripe",
     "group": "mandarin:M09",
     "source_group": "M09_20261008",
     "phase": "test",
@@ -4799,7 +4799,7 @@
   {
     "path": "data/raw/1008mandarin/20261008_mandarin_M09_indoor_04.jpg",
     "fruit": "mandarin",
-    "ripeness": "unripe",
+    "ripeness": "ripe",
     "group": "mandarin:M09",
     "source_group": "M09_20261008",
     "phase": "test",
@@ -4808,7 +4808,7 @@
   {
     "path": "data/raw/1008mandarin/20261008_mandarin_M09_indoor_05.jpg",
     "fruit": "mandarin",
-    "ripeness": "unripe",
+    "ripeness": "ripe",
     "group": "mandarin:M09",
     "source_group": "M09_20261008",
     "phase": "test",
@@ -4817,7 +4817,7 @@
   {
     "path": "data/raw/1008mandarin/20261008_mandarin_M09_indoor_dim_06.jpg",
     "fruit": "mandarin",
-    "ripeness": "unripe",
+    "ripeness": "ripe",
     "group": "mandarin:M09",
     "source_group": "M09_20261008",
     "phase": "test",
@@ -4826,7 +4826,7 @@
   {
     "path": "data/raw/1008mandarin/20261008_mandarin_M09_indoor_dim_07.jpg",
     "fruit": "mandarin",
-    "ripeness": "unripe",
+    "ripeness": "ripe",
     "group": "mandarin:M09",
     "source_group": "M09_20261008",
     "phase": "test",
@@ -4835,7 +4835,7 @@
   {
     "path": "data/raw/1008mandarin/20261008_mandarin_M09_indoor_dim_08.jpg",
     "fruit": "mandarin",
-    "ripeness": "unripe",
+    "ripeness": "ripe",
     "group": "mandarin:M09",
     "source_group": "M09_20261008",
     "phase": "test",
@@ -4844,7 +4844,7 @@
   {
     "path": "data/raw/1008mandarin/20261008_mandarin_M09_indoor_dim_09.jpg",
     "fruit": "mandarin",
-    "ripeness": "unripe",
+    "ripeness": "ripe",
     "group": "mandarin:M09",
     "source_group": "M09_20261008",
     "phase": "test",
@@ -4853,7 +4853,7 @@
   {
     "path": "data/raw/1008mandarin/20261008_mandarin_M09_indoor_dim_10.jpg",
     "fruit": "mandarin",
-    "ripeness": "unripe",
+    "ripeness": "ripe",
     "group": "mandarin:M09",
     "source_group": "M09_20261008",
     "phase": "test",
@@ -6755,7 +6755,7 @@
     "ripeness": "unripe",
     "group": "tomato:T11",
     "source_group": "T11_20261012",
-    "phase": "selection",
+    "phase": "train",
     "sha256": "d6c354ac4767e781a15dc2e60df1867d73f0fb87e46315abca7628b2977cd477"
   },
   {
@@ -6782,7 +6782,7 @@
     "ripeness": "unripe",
     "group": "tomato:T14",
     "source_group": "T14_20261012",
-    "phase": "calibration",
+    "phase": "train",
     "sha256": "2800698a746009c0cbde315140dd15c001ffff18395b8a9a78b2b6ab98945e5e"
   },
   {
@@ -6791,7 +6791,7 @@
     "ripeness": "unripe",
     "group": "tomato:T15",
     "source_group": "T15_20261012",
-    "phase": "test",
+    "phase": "train",
     "sha256": "82cdc605d08089be0b1ca109ca4400602e713ebb8c8dacc8e543cfb8e486a4ce"
   },
   {
@@ -6800,7 +6800,7 @@
     "ripeness": "unripe",
     "group": "tomato:T16",
     "source_group": "T16_20261012",
-    "phase": "test",
+    "phase": "train",
     "sha256": "6652fe04b1ecb3c248b93c3897674893df1e7662f83ff3280d7f49d1309cd173"
   },
   {

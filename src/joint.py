@@ -146,6 +146,10 @@ def train(epochs=6):
     run = ROOT / "outputs" / "joint_nine" / ("training_" + stamp())
     run.mkdir(parents=True)
     samples = json.loads((MODEL_DIR / "split_manifest.json").read_text(encoding="utf-8"))
+    from src.joint_labels import refresh_labels
+    samples, label_changes = refresh_labels(samples, ROOT / "data" / "metadata" / "fruit_labels.csv")
+    dump(run / "label_changes.json", label_changes)
+    print(f"최신 CSV 숙도·split 반영: {len(label_changes)}장 (train 내부 검증 분할 유지)")
     for s in samples:
         if sha(ROOT / s["path"]) != s["sha256"]:
             raise ValueError(f"학습 기준 사진이 변경됐습니다: {s['path']}")
@@ -201,6 +205,12 @@ def evaluate():
         text += f"{fruit} 숙도 Macro F1: {value['ripeness_macro_f1']:.4f}\n"
     text += f"FPS: {timing_summary(rows)['fps']:.2f}\n기존에 확인한 Test 자료를 이용한 회귀 평가입니다.\n"
     (run / "report.md").write_text(text, encoding="utf-8")
+    from src.performance_history import rebuild_evaluation_history
+    try:
+        rebuild_evaluation_history(ROOT / "outputs" / "evaluation")
+        print(f"평가 그래프 갱신: {ROOT / 'outputs' / 'evaluation' / 'evaluation_history.svg'}")
+    except (OSError, ValueError, KeyError) as error:
+        print(f"평가 결과는 저장됐지만 그래프 갱신에 실패했습니다: {error}")
     print(text, f"결과: {run}")
     return metrics
 

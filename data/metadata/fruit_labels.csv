@@ -32,7 +32,7 @@ mandarin,M05,2026-10-08,ripe,M05_20261008,train
 mandarin,M06,2026-10-08,ripe,M06_20261008,test
 mandarin,M07,2026-10-08,unripe,M07_20261008,test
 mandarin,M08,2026-10-08,unripe,M08_20261008,test
-mandarin,M09,2026-10-08,unripe,M09_20261008,test
+mandarin,M09,2026-10-08,ripe,M09_20261008,test
 mandarin,M10,2026-10-08,ripe,M10_20261008,test
 mandarin,M100,2026-10-12,overripe,M100_20261012,test
 mandarin,M101,2026-10-12,overripe,M101_20261012,test
@@ -173,8 +173,8 @@ tomato,T11,2026-10-12,unripe,T11_20261012,train
 tomato,T12,2026-10-12,unripe,T12_20261012,train
 tomato,T13,2026-10-12,unripe,T13_20261012,train
 tomato,T14,2026-10-12,unripe,T14_20261012,train
-tomato,T15,2026-10-12,unripe,T15_20261012,test
-tomato,T16,2026-10-12,unripe,T16_20261012,test
+tomato,T15,2026-10-12,unripe,T15_20261012,train
+tomato,T16,2026-10-12,unripe,T16_20261012,train
 tomato,T17,2026-10-16,overripe,T17_20261016,train
 tomato,T18,2026-10-16,overripe,T18_20261016,train
 tomato,T19,2026-10-16,overripe,T19_20261016,train
@@ -225,3 +225,6 @@ tomato,T63,2026-10-16,overripe,T63_20261016,train
 tomato,T64,2026-10-16,overripe,T64_20261016,train
 tomato,T65,2026-10-16,overripe,T65_20261016,train
 tomato,T66,2026-10-16,overripe,T66_20261016,train
+tomato,T67,2026-10-26,unripe,T67_20261026,test
+tomato,T68,2026-10-26,unripe,T68_20261026,test
+tomato,T69,2026-10-26,unripe,T69_20261026,test
