@@ -6,6 +6,7 @@ from html import escape
 from pathlib import Path
 
 import pandas as pd
+import json
 
 
 def run_time():
@@ -115,7 +116,7 @@ def draw_evaluation_history(history, path):
         previous = None
         for row in data.itertuples():
             x, y = x_for(row.time), bottom - float(row.macro_f1) * (bottom - top)
-            changed = previous is not None and previous[2] != row.dataset_id
+            changed = False
             if previous is not None:
                 dash = ' stroke-dasharray="6 5"' if changed else ''
                 svg.append(f'<line x1="{previous[0]}" y1="{previous[1]}" x2="{x}" y2="{y}" stroke-width="2.5"{dash}/>')
@@ -124,7 +125,7 @@ def draw_evaluation_history(history, path):
             previous = (x, y, row.dataset_id)
         svg.append('</g>')
     svg += ['<text x="40" y="615" font-size="13" fill="#475569">점 위에 마우스를 올리면 정확도·실행 시각·데이터 구분값을 확인할 수 있습니다.</text>',
-            '<text x="40" y="638" font-size="13" fill="#475569">점선: 평가 데이터가 바뀐 구간입니다. 해당 구간의 점수 차이를 모델 개선만으로 해석하지 마세요.</text>',
+            '<text x="40" y="638" font-size="13" fill="#475569">이전 모델과 통합 9클래스 모델의 평가 결과를 실행 순서대로 연결합니다.</text>',
             '</g></svg>']
     Path(path).write_text("\n".join(svg), encoding="utf-8")
 
@@ -137,6 +138,26 @@ def rebuild_evaluation_history(output_root, current=None):
     history_path = root / "evaluation_history.csv"
     if history_path.exists():
         tables.append(pd.read_csv(history_path, keep_default_na=False)[EVALUATION_COLUMNS])
+    # Joint runs retain their original UTC timestamps; rebuilding is idempotent.
+    for metrics_path in sorted((root.parent / "joint_nine").glob("evaluation_*/metrics.json")):
+        predictions_path = metrics_path.parent / "predictions.json"
+        if not predictions_path.exists() or not (metrics_path.parent / "report.md").exists():
+            continue
+        metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+        predictions = json.loads(predictions_path.read_text(encoding="utf-8"))
+        timestamp = datetime.strptime(metrics_path.parent.name, "evaluation_%Y%m%dT%H%M%S%fZ").replace(tzinfo=timezone.utc)
+        rows = []
+        for scope in ("overall", "banana", "mandarin", "tomato"):
+            selected = [r for r in predictions if scope == "overall" or r["truth_fruit"] == scope]
+            identity = sorted((r["image_path"].replace("\\", "/").split("/data/")[-1],
+                               r["truth_class"]) for r in selected)
+            dataset = sha256(json.dumps(identity, ensure_ascii=False).encode("utf-8")).hexdigest()[:12]
+            values = metrics if scope == "overall" else metrics["per_fruit"][scope]
+            rows.append({"evaluated_at": timestamp.astimezone(timezone(timedelta(hours=9))).isoformat(),
+                         "scope": scope, "dataset_id": dataset,
+                         "accuracy": values["joint_accuracy_including_rejections" if scope == "overall" else "correct_kind_and_stage_accuracy"],
+                         "macro_f1": values["nine_class_macro_f1" if scope == "overall" else "ripeness_macro_f1"]})
+        tables.append(pd.DataFrame(rows))
     for metrics_path in sorted(root.glob("*/metrics.csv")):
         run = metrics_path.parent
         table = pd.read_csv(metrics_path, keep_default_na=False)

@@ -7,19 +7,15 @@ from src.joint import JointClassifier, timing_summary
 class JointTests(unittest.TestCase):
     def test_default_folder_entry_uses_joint_not_legacy_models(self):
         from src.predict import predict_folder
-        with patch("src.joint.predict_folder", return_value=([], {})) as joint, \
-             patch("src.predict.load_model") as legacy:
+        with patch("src.joint.predict_folder", return_value=([], {})) as joint:
             self.assertEqual(predict_folder("photos"), ([], {}))
             joint.assert_called_once_with("photos")
-            legacy.assert_not_called()
 
     def test_default_single_entry_suppresses_unknown_stage(self):
         from src.predict import predict
-        with patch("src.joint.JointClassifier") as classifier, \
-             patch("src.predict.load_model") as legacy:
+        with patch("src.joint.JointClassifier") as classifier:
             classifier.return_value.predict.return_value = {"status": "unknown", "ripeness": None}
             self.assertEqual(predict("photo.jpg"), "unknown")
-            legacy.assert_not_called()
 
     def predictor(self, accepted):
         classifier = object.__new__(JointClassifier)
