@@ -140,8 +140,8 @@ YOLO26n-cls 한 번 실행
 특징 벡터는 YOLO의 마지막 분류층 직전에서 얻습니다.
 모름 판정도 같은 YOLO 실행에서 얻은 정보를 사용합니다.
 
-초기 HSV 특징·K-means 마스크 파이프라인은 과거 구현과 비교 실험에 남아 있습니다.
-현재 통합 YOLO의 필수 처리 단계는 아닙니다.
+초기 HSV 특징·K-means 마스크 파이프라인은 보관본과 과거 비교 실험 기록에 남아 있습니다.
+현재 통합 YOLO 경로에는 포함되지 않습니다.
 
 ---
 
@@ -239,8 +239,9 @@ python -m src.predict
 python -m src.predict "C:/photos/fruit"
 ```
 
-`src.train`·`src.evaluate`는 이전 방식의 진입점입니다.
 현재 기본 학습·평가는 `main.py` 또는 `src.joint`를 사용합니다.
+이전 `src.train`·`src.evaluate`와 HSV 기반 모듈은 현재 src에서 제거했습니다.
+정리 전 소스는 `archive/src_cleanup_20261026/`에 보관했습니다.
 
 ---
 
@@ -739,14 +740,8 @@ SmartSort/
 │   ├── joint_labels.py
 │   ├── predict.py
 │   ├── performance_history.py
-│   ├── fruit_classifier.py
-│   ├── fruit_identity_experiment.py
-│   ├── agent/
-│   ├── dataset.py
-│   ├── preprocessing.py
-│   ├── feature_extraction.py
-│   ├── train.py
-│   └── evaluate.py
+│   ├── rejection.py
+│   └── agent/
 ├── outputs/
 │   ├── joint_nine/
 │   ├── predictions/
@@ -754,7 +749,9 @@ SmartSort/
 ├── experiments/nine_class_comparison/
 ├── docs/
 ├── tests/
-└── archive/before_joint_nine_20261023/
+└── archive/
+    ├── before_joint_nine_20261023/
+    └── src_cleanup_20261026/
 ```
 
 | 파일 | 역할 |
@@ -765,12 +762,12 @@ SmartSort/
 | `src/joint_labels.py` | CSV 숙도·split 반영 |
 | `src/predict.py` | 예측 진입점·결과 CSV 및 실행 정보 저장 |
 | `src/performance_history.py` | 누적 이력·SVG 생성 |
-| `src/fruit_classifier.py` | 거리·모름 점수 계산 등 공유 함수 및 이전 구현 |
-| `src/fruit_identity_experiment.py` | 과일별 기준 보정 등 공유 함수 및 실험 |
+| `src/rejection.py` | 모름 점수·특징 거리·과일별 기준 보정 |
 | `src/agent/` | 행동 제안 규칙 |
 
-일부 이전 이름의 모듈에도 현재 통합 경로가 재사용하는 함수가 있습니다.
-과거 코드로 보인다는 이유만으로 파일을 삭제하지 않습니다.
+현재 필요한 공유 함수는 `src/rejection.py`로 분리했습니다.
+이전 방식 전용 Python 파일 15개와 해당 테스트는 정리 전 보관본에 남겼습니다.
+현재 예측 명령은 통합 YOLO 전용이며 이전 `--fruit-mode image/filename` 옵션은 제거했습니다.
 
 ---
 
@@ -802,6 +799,10 @@ PCA·특징 제거 실험·오분류 분석은 특징과 클래스 분포를 검
 - 2026-10-23: 기본 실행을 통합 9클래스 YOLOv8n-cls로 전환
 - 2026-10-26: YOLO26n-cls 채택 및 후속 재학습
 - 후속 개선: CSV 숙도·split 갱신, 평가 이력 그래프 자동 갱신
+
+이전 모듈을 불러오는 과거 실험·변환 스크립트는 현재 src 구성에서 실행할 수 없습니다.
+해당 소스는 `archive/src_cleanup_20261026/`의 정리 전 스냅샷에 함께 보관했습니다.
+과거 방식 재현에는 보관본 소스와 당시 모델·데이터 경로가 필요합니다.
 
 과거 모델별 점수는 당시 데이터·분할·평가 방식의 기록입니다.
 원본 실험의 설정과 산출물은 해당 문서·실행 폴더에서 확인합니다.

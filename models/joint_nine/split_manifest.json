@@ -6755,7 +6755,7 @@
     "ripeness": "unripe",
     "group": "tomato:T11",
     "source_group": "T11_20261012",
-    "phase": "train",
+    "phase": "calibration",
     "sha256": "d6c354ac4767e781a15dc2e60df1867d73f0fb87e46315abca7628b2977cd477"
   },
   {
@@ -6773,7 +6773,7 @@
     "ripeness": "unripe",
     "group": "tomato:T13",
     "source_group": "T13_20261012",
-    "phase": "calibration",
+    "phase": "train",
     "sha256": "eb71fb21ae5d66219bef1b19763180a023b4297d96ea7fa9981ef52938ce83ca"
   },
   {
@@ -24361,5 +24361,527 @@
     "source_group": "lemon:39",
     "phase": "test",
     "sha256": "43639896b840eb39e2c7fb1f884a27398e496d6fd45a252b962d6f7845e1a67f"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T67_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T67",
+    "source_group": "T67_20261026",
+    "phase": "test",
+    "sha256": "d515709dd8aaedc2bde7a318c7b8f4da09ad3c70dbef492c5fdb25e85965b41d"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T68_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T68",
+    "source_group": "T68_20261026",
+    "phase": "calibration",
+    "sha256": "15cf905c5bf2bfbe300cf47f0290f00bf6c03165da78c8f8dd3f134d12501040"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T69_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T69",
+    "source_group": "T69_20261026",
+    "phase": "selection",
+    "sha256": "51cd1a3a94d3c2f9ece727287895f147663b52dcfbe22595f1d1e14448623341"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T70_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T70",
+    "source_group": "T70_20261026",
+    "phase": "train",
+    "sha256": "ef559a92d6aaf1aacd913d95c57c2d40497031dfc1bd90e529aff6728d6eca84"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T71_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T71",
+    "source_group": "T71_20261026",
+    "phase": "train",
+    "sha256": "f64322e1fba48829fb5e16c39d49f74f656a91618f0e78873430ee8078911929"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T72_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T72",
+    "source_group": "T72_20261026",
+    "phase": "train",
+    "sha256": "e6ac4743faf68f017cc4b9533142d5eb8ed07d5f49d9b72135a7c98e2737cf15"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T73_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T73",
+    "source_group": "T73_20261026",
+    "phase": "train",
+    "sha256": "c99e6b29ecbb53097c387572fdd62f4534374efe99685c996b39de810d9f0642"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T74_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T74",
+    "source_group": "T74_20261026",
+    "phase": "train",
+    "sha256": "4515ea1fd588bb22bd12aeeaf2f855f60e0e2e806c691da7d99cfc8fe80d5628"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T75_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T75",
+    "source_group": "T75_20261026",
+    "phase": "train",
+    "sha256": "70203e02619459df770459b80a361a72ade8452a041bf86c1f6d271efba60932"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T76_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T76",
+    "source_group": "T76_20261026",
+    "phase": "train",
+    "sha256": "28e5c767ea32ace41b9e9435865de07e48f82eb7a3d93679cd923ae08a28e061"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T77_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T77",
+    "source_group": "T77_20261026",
+    "phase": "train",
+    "sha256": "5c8ca43ff3699834e8a9ccbcd1dfe5cecfd042e6b914fb9839953b596cfe6bce"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T78_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T78",
+    "source_group": "T78_20261026",
+    "phase": "train",
+    "sha256": "67d9d62c42e71105617a68bf2512436ee12de03fd275c6dd218e03d42744b38e"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T79_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T79",
+    "source_group": "T79_20261026",
+    "phase": "train",
+    "sha256": "874db03e0cacf6805c1f10f99bb96cd6d6b555b0f1867affcf3b1ef7fc6ce2a5"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T80_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T80",
+    "source_group": "T80_20261026",
+    "phase": "train",
+    "sha256": "c947d3524b2cd9f7a3304e12e9742993258716531a2ed88da2b7d73e89bc7d51"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T81_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T81",
+    "source_group": "T81_20261026",
+    "phase": "train",
+    "sha256": "9b70de2fff1c7eaf57a03c9ae5a7e7270aff4886cf72a2201d62a7962261688a"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T82_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T82",
+    "source_group": "T82_20261026",
+    "phase": "train",
+    "sha256": "dc18b361c9533bddb93183012b4be9ae3fd935eddfdf1dd4ef092cf4a9cc335b"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T100_indoor_01.jpg",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T100",
+    "source_group": "T100_20261026",
+    "phase": "train",
+    "sha256": "333e869e4b4f1e4488baadbfa507328b827d6db148c2ff93a8994ee6cda34cad"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T101_indoor_01.jpg",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T101",
+    "source_group": "T101_20261026",
+    "phase": "train",
+    "sha256": "e7094277ff0897855b1fbfa0a902045a8b0228772f380c3fcb1152a4aefe7ef8"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T102_indoor_01.jpg",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T102",
+    "source_group": "T102_20261026",
+    "phase": "train",
+    "sha256": "61a15f6c7182d2f98d3e40904d1445654d7e9eacdcc87c047808e8a3aedb26fa"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T103_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T103",
+    "source_group": "T103_20261026",
+    "phase": "train",
+    "sha256": "a278f2ed12c22df116d80c2b0da7e6b8ca5f78eb87a3b375c6f53a0b4c75ae55"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T104_indoor_01.jpg",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T104",
+    "source_group": "T104_20261026",
+    "phase": "train",
+    "sha256": "f025db99583989915d498d61e8a9fb42fe8dd89badc61269192a762c048674b4"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T105_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T105",
+    "source_group": "T105_20261026",
+    "phase": "train",
+    "sha256": "2e4bdab4e2c757c848b9c6135399e7ac0d225a0ca9ce77a6d76da1aafe639688"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T106_indoor_01.jpg",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T106",
+    "source_group": "T106_20261026",
+    "phase": "train",
+    "sha256": "884601978ec03ba95c2548074e1be93eb749074fe2c06b81bd7dc277fef4b5e8"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T107_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T107",
+    "source_group": "T107_20261026",
+    "phase": "train",
+    "sha256": "f8b3c5e9c7ee4869309aa7ffb7ad1d448012862473df811af6ec2942919214af"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T108_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T108",
+    "source_group": "T108_20261026",
+    "phase": "train",
+    "sha256": "535fd9346863ba159902d13add82f2c60754d1e184a84b8a9a6d814c757aa66e"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T109_indoor_01.jpg",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T109",
+    "source_group": "T109_20261026",
+    "phase": "train",
+    "sha256": "c0bfce557c543ab7e0b0ee9dba3fde307602b6a9854c1d534475502e44f2b9b7"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T110_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T110",
+    "source_group": "T110_20261026",
+    "phase": "train",
+    "sha256": "4e6c40fa4117e76ab253bc49e6a7f4008d932d82024be78f443f67bdb7e8271a"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T111_indoor_01.jpg",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T111",
+    "source_group": "T111_20261026",
+    "phase": "train",
+    "sha256": "99964a56e2b4260c04355e79818e46c97e619ec6b96b37796c6751a6cc7210c8"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T112_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T112",
+    "source_group": "T112_20261026",
+    "phase": "train",
+    "sha256": "213ca4c4763a924cee446b80e1377414363d9eb95297b75b69ec91b3e1b2efc0"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T83_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T83",
+    "source_group": "T83_20261026",
+    "phase": "train",
+    "sha256": "7747a079a9d01fc925fb86e67aae184ac9be5b8020dab0526c49e08331d622cd"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T84_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T84",
+    "source_group": "T84_20261026",
+    "phase": "train",
+    "sha256": "612c9c91a8315fc690bcc778a1b43b49a18b92a2ff4b4883c2e6934a47fd0b36"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T85_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T85",
+    "source_group": "T85_20261026",
+    "phase": "train",
+    "sha256": "10a78aebb1f2fc2916a14fa747c2f878380dec83d5ab3cba09dbde7f8c3b4bad"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T86_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T86",
+    "source_group": "T86_20261026",
+    "phase": "train",
+    "sha256": "06b6841ebf1d33cb86f360774a6a8a37fdf8ea7c91f07be52090085c21263388"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T87_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T87",
+    "source_group": "T87_20261026",
+    "phase": "train",
+    "sha256": "9228ac4a7ef4a7513ed51b3e2d44450ad064e3c80ad2bd337a302783e379551d"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T88_indoor_01.jpg",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T88",
+    "source_group": "T88_20261026",
+    "phase": "train",
+    "sha256": "c399c8738ba602e7bf1653481f39ba3a20ca4b324f053238c30a34bb25b0c1bf"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T89_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T89",
+    "source_group": "T89_20261026",
+    "phase": "train",
+    "sha256": "48f720106e5ed9087446cbdcf81c49314c7d1a0ef3d63d87c7a1aeab97dee2cd"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T90_indoor_01.jpg",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T90",
+    "source_group": "T90_20261026",
+    "phase": "train",
+    "sha256": "8a7690808851cd41ba3ec9297012d8c88f57d7e3384cd094dda6511296fac0dc"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T91_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T91",
+    "source_group": "T91_20261026",
+    "phase": "train",
+    "sha256": "20b65404665a6473a12cbeda5f0cdcf864fc41c2cc468e3f1356ec518bfe3eb2"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T92_indoor_01.jpg",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T92",
+    "source_group": "T92_20261026",
+    "phase": "train",
+    "sha256": "28ca9d8e0fb24984cb3fc555083213f3c804fe7b259c57a17f1610d10f61c8fa"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T93_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T93",
+    "source_group": "T93_20261026",
+    "phase": "train",
+    "sha256": "cc984223743eddb68852aba039ec3c3b413a0ef47a74ea42bcf676f3f2bab4a7"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T94_indoor_01.jpg",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T94",
+    "source_group": "T94_20261026",
+    "phase": "train",
+    "sha256": "046089a404aa5e07cfe7b7e8931a7f90f246f721a4f96ae0624e61cab0f4d758"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T95_indoor_01.jpg",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T95",
+    "source_group": "T95_20261026",
+    "phase": "train",
+    "sha256": "7ecc196d64d751aadec25a77ac8df78229509cf5d0ec1ce673597f4159f8cdd2"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T96_indoor_01.jpg",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T96",
+    "source_group": "T96_20261026",
+    "phase": "train",
+    "sha256": "71962ed5aedb4cbab36be2241020e6e7cd0fd5f9800a247cb93fc936bea8a6ae"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T97_indoor_01.jpg",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T97",
+    "source_group": "T97_20261026",
+    "phase": "train",
+    "sha256": "4b2a4c64126986d276899be458ad1a11a5358b2f26d47236e4d40c3659afe9f3"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T98_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T98",
+    "source_group": "T98_20261026",
+    "phase": "train",
+    "sha256": "8ace132fedea14399058b45811e3c8e62bcf146d5ae2040401179bf83fa3c9fc"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T99_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T99",
+    "source_group": "T99_20261026",
+    "phase": "train",
+    "sha256": "8ace132fedea14399058b45811e3c8e62bcf146d5ae2040401179bf83fa3c9fc"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T113_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T113",
+    "source_group": "T113_20261026",
+    "phase": "train",
+    "sha256": "c39525bda210fc51074fb74673e743a31515aa795a7cdf8988550aaf33c3db4b"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T114_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T114",
+    "source_group": "T114_20261026",
+    "phase": "train",
+    "sha256": "dd1f9c5db9cb6ddc48dfbc967a0929bc833b061b945b777431c8bcfa7f24c918"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T115_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T115",
+    "source_group": "T115_20261026",
+    "phase": "train",
+    "sha256": "4c8893ec5fe6b9fb563766fc50fbccde3b2f7e51cf38a3b2fb49a6698ad8443b"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T116_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T116",
+    "source_group": "T116_20261026",
+    "phase": "train",
+    "sha256": "dc9dab053154fa25c9585714d530b7527bd68067ed99cd078ec556a283eb9d6b"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T117_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T117",
+    "source_group": "T117_20261026",
+    "phase": "train",
+    "sha256": "6a73bb13277e6c60c93744cbec23261f3cfe2c60667001059bf4d108f19803bf"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T118_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T118",
+    "source_group": "T118_20261026",
+    "phase": "train",
+    "sha256": "c896fec7a696ade5566cbb3d5d864e3c81e41f99c9bb9d8ec2e418be1aebb2a0"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T119_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T119",
+    "source_group": "T119_20261026",
+    "phase": "train",
+    "sha256": "22be4e964c8347fe2dbf0cc42157f754aae1f64661a56b8aa0508c7865659d8d"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T120_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T120",
+    "source_group": "T120_20261026",
+    "phase": "train",
+    "sha256": "ee142ee621249af3dda1b1658f840822a10579d8d89781eb46ad1d299f218d7e"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T121_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T121",
+    "source_group": "T121_20261026",
+    "phase": "train",
+    "sha256": "3f28c4dcb488e457ac521d12a99d27df1f1e4a356723b2a48116f6bc41da573b"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T122_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T122",
+    "source_group": "T122_20261026",
+    "phase": "train",
+    "sha256": "d32e0f3f7878c4dc8d39872711ac74fccaf804bcf384ec765849dc9629ddbeac"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T123_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T123",
+    "source_group": "T123_20261026",
+    "phase": "train",
+    "sha256": "1cd3e007332f12e890a0c70b358bd89c0e34cf1e6fbbef207276664976697fd1"
+  },
+  {
+    "path": "data/raw/1026tomato/20261026_tomato_T124_indoor_01.png",
+    "fruit": "tomato",
+    "ripeness": "unripe",
+    "group": "tomato:T124",
+    "source_group": "T124_20261026",
+    "phase": "train",
+    "sha256": "624ca2e40ac7d183bdcc2945f022eb9290598f37fccabb9660e02ced6c8778e9"
   }
 ]

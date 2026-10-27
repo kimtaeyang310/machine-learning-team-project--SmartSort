@@ -49,24 +49,6 @@ class HistoryTests(unittest.TestCase):
             self.assertEqual(len(history), 2)
             ElementTree.parse(Path(directory) / "training_history.svg")
 
-    def test_evaluate_writes_only_graph_and_minimal_csv(self):
-        from src.evaluate import evaluate
-        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]) as directory:
-            samples = self.samples()
-            model = Mock()
-            model.predict.return_value = [0, 1]
-            bundle = {"model": model, "label_mapping": {"unripe": 0, "ripe": 1, "overripe": 2}}
-            with patch("src.evaluate.load_inputs", return_value=(bundle, samples)), patch(
-                "src.evaluate.extract_test_features", return_value=pd.DataFrame({"x": [1, 2]})
-            ):
-                evaluate(output_root=directory)
-                evaluate(output_root=directory)
-            root = Path(directory)
-            self.assertEqual({p.name for p in root.iterdir()}, {"evaluation_history.csv", "evaluation_history.svg"})
-            history = pd.read_csv(root / "evaluation_history.csv")
-            self.assertEqual(list(history.columns), EVALUATION_COLUMNS)
-            self.assertEqual(len(history), 4)
-            self.assertEqual(len(rebuild_evaluation_history(root)), 4)
 
     def test_sample_identity_ignores_order(self):
         self.assertEqual(sample_id(self.samples()), sample_id(self.samples().iloc[::-1]))

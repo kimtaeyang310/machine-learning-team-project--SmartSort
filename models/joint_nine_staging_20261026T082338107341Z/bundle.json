@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "imgsz": 224,
+  "source": "C:\\Users\\user1\\OneDrive\\바탕 화면\\team_project\\SmartSort\\machine-learning-team-project--SmartSort\\outputs\\joint_nine\\training_20261026T081644918809Z",
+  "model_name": "yolo26n_cls_joint_nine",
+  "sha256": {
+    "model.pt": "1776f550dc4477f1017b19d2dd522bbcf10e69a57dc828b00f6c41e89c1ee07e",
+    "policy.joblib": "274a1446622c3d22f93c4e354388a6eb5cdef98ab7c716e3e915c8fa1d6ab19a",
+    "split_manifest.json": "641d5b5caed26de8b51aaf9216150c529269ce55497d2071ff7b82335e037b58"
+  }
+}

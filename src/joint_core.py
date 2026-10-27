@@ -10,8 +10,7 @@ import numpy as np
 import torch
 from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
 from ultralytics import YOLO
-from src.fruit_classifier import unfamiliarity_scores, threshold_values
-from src.fruit_identity_experiment import calibrate_per_fruit
+from src.rejection import unfamiliarity_scores, threshold_values, calibrate_per_fruit
 ROOT = Path(__file__).resolve().parents[1]
 FRUITS = ("banana", "mandarin", "tomato")
 STAGES = ("unripe", "ripe", "overripe")
