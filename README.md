@@ -59,7 +59,7 @@ SmartSort는 농산물 사진에서 **과일 종류와 숙도를 함께 예측**
 | 이름 | 담당 | 주요 역할 |
 |---|---|---|
 | 김태양 | Data & Analysis | 이미지 수집·정리, 라벨링, 데이터 품질 점검, EDA, 시각화, 발표 자료 |
-| 류채연 | Model & Evaluation | 전처리·특징 추출, 모델 학습·비교, 튜닝, 성능 평가, 오분류 분석 |
+| 류채연 | Model & Evaluation | 전처리·특징 추출, 모델 학습·비교, 튜닝, 성능 평가, 오분류 분석 에이전트 확장 |
 
 데이터 최종 검수, 모델 선정, 결과 해석, README와 발표 자료 작성은 공동으로 진행합니다.
 역할은 초기 분담 기준이며 실제 개선 작업은 함께 검토합니다.
@@ -242,6 +242,59 @@ python -m src.predict "C:/photos/fruit"
 현재 기본 학습·평가는 `main.py` 또는 `src.joint`를 사용합니다.
 이전 `src.train`·`src.evaluate`와 HSV 기반 모듈은 현재 src에서 제거했습니다.
 정리 전 소스는 `archive/src_cleanup_20261026/`에 보관했습니다.
+
+
+## Ollama 대화형 SmartSort 비서
+
+SmartSort 비서는 Ollama의 로컬 언어 모델과 기존 과일·숙도 예측 코드를 연결한 데스크톱 채팅 앱입니다. 사용자는 채팅으로 작업을 요청하고, 비서는 허용된 SmartSort 작업을 선택해 실행하도록 구성되어 있습니다.
+
+### 구성
+
+- `assistant_app.py`: 비서 앱 실행 파일
+- `src/assistant/ui.py`: 채팅 창과 폴더 선택 창
+- `src/assistant/ollama_client.py`: Ollama 대화와 도구 호출 연결
+- `src/assistant/tools.py`: 허용 작업, 입력 검사, 기존 예측 코드 호출
+
+### 설치 및 실행
+
+Ollama 앱을 설치하고, 사용할 모델을 한 번 내려받습니다.
+
+```powershell
+ollama pull qwen3:4b
+```
+
+프로젝트 Python 환경에 패키지를 설치합니다.
+
+```powershell
+& C:/Users/user1/anaconda3/envs/teamTC/python.exe -m pip install -r requirements.txt
+```
+
+Ollama가 실행 중인 상태에서 프로젝트 최상위 폴더에서 비서 앱을 시작합니다.
+
+```powershell
+& C:/Users/user1/anaconda3/envs/teamTC/python.exe assistant_app.py
+```
+
+### 지원 작업
+
+- 기본 예측 폴더 또는 사용자가 선택한 폴더의 사진 분석
+- 최근 예측 결과 요약 및 모르는 과일 목록 확인
+- 현재 모델과 판정 기준 안내
+- 과일별 숙도 개수, 모르는 과일 수, 처리 실패 수, 처리 시간과 FPS 확인
+- 예측 결과 CSV 저장
+
+이미지는 한 번에 최대 60장까지 처리하며, JPG, JPEG, PNG, BMP, WEBP, TIF, TIFF 형식을 지원합니다. 예측 CSV는 `outputs/predictions`에 새 파일로 저장됩니다.
+
+### 실행 제한
+
+비서는 허용된 SmartSort 작업만 실행합니다. 임의 코드나 터미널 명령 실행, 파일 수정·삭제, 재학습, 판정 기준 변경은 지원하지 않습니다. 다른 폴더의 사진은 채팅에 경로를 입력하는 대신 폴더 선택 창에서 지정해야 합니다.
+
+정답 라벨이 없는 예측 실행에서는 정확도나 F1 점수를 계산하지 않습니다. 처리 시간과 FPS는 실행 속도 지표이며, 분류의 정확도를 뜻하지 않습니다.
+
+### 현재 확인 사항
+
+앱 창과 Python 모듈 연결은 확인했습니다. 다만 모델이 요청을 예측 도구 호출로 연결하지 않고 일반 답변을 할 수 있어, 실제 도구 호출과 결과 응답은 계속 확인해야 합니다.
+
 
 ---
 
@@ -884,6 +937,7 @@ python -m unittest tests.test_joint tests.test_joint_labels tests.test_performan
 - [Mendeley Data 데이터셋, 버전 2](https://data.mendeley.com/datasets/ptfscwtnyz/2)
 - [Kaggle — Fruit Ripeness: Unripe, Ripe and Rotten](https://www.kaggle.com/datasets/leftin/fruit-ripeness-unripe-ripe-and-rotten)
 - [Kaggle — Riped and Unriped Tomato Dataset](https://www.kaggle.com/datasets/sumn2u/riped-and-unriped-tomato-dataset)
+(https://www.kaggle.com/datasets/techkhid/riped-and-unriped-tomato-dataset)
 - [Roboflow Universe — 기존 README에 기록된 참조 링크](https://universe.roboflow.com/models/object-detection)
 
 Roboflow 링크는 특정 데이터셋 버전을 식별하지 않는 기존 참조입니다.
