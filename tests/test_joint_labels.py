@@ -6,6 +6,20 @@ from src.joint_labels import refresh_labels
 
 
 class JointLabelTests(unittest.TestCase):
+    def test_explicit_selection_persists_and_conflicting_split_is_rejected(self):
+        sample = {"fruit":"mandarin", "source_group":"M09_20261008", "ripeness":"ripe",
+                  "group":"mandarin:M09", "phase":"test", "path":"photo.jpg"}
+        with tempfile.TemporaryDirectory() as directory:
+            csv = Path(directory)/"labels.csv"
+            csv.write_text("fruit,group_id,ripeness,split,phase\nmandarin,M09_20261008,ripe,train,selection\n",encoding="utf-8")
+            updated,changes = refresh_labels([sample],csv)
+            self.assertEqual(updated[0]["phase"],"selection")
+            self.assertEqual(updated[0]["ripeness"],"ripe")
+            self.assertEqual(refresh_labels(updated,csv)[0][0]["phase"],"selection")
+            csv.write_text("fruit,group_id,ripeness,split,phase\nmandarin,M09_20261008,ripe,test,selection\n",encoding="utf-8")
+            with self.assertRaises(ValueError):
+                refresh_labels([sample],csv)
+
     def test_refresh_applies_split_and_does_not_mutate_input(self):
         original = [{"fruit": "mandarin", "source_group": "M09_20261008",
                      "ripeness": "unripe", "phase": "test", "path": "photo.jpg",

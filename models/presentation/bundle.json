@@ -1,0 +1,16 @@
+{
+  "format": 1,
+  "imgsz": 224,
+  "model_name": "yolo26n_cls_joint_nine_crop_diversity",
+  "source": "outputs/mandarin_diversity/run_20261029T064011783881Z/diversity",
+  "adaptation": "additional ripe mandarin source families",
+  "arm": "diversity",
+  "preprocessing": "max-side 320; HSV largest region; 18% padding",
+  "sha256": {
+    "model.pt": "4466eb3323e9a56c4426b93b1421b53cbf81d221cb1211022bf30ae1791354d6",
+    "policy.joblib": "585820e6ec5c87044e542a87c2f5fc2b041a805058109307c4bb9ca9ffd42708",
+    "split_manifest.json": "d33498dd8d04ae1b8aba0bef20aa5671c47eee085297b4ea7a28ce63baaeb98a"
+  },
+  "source_is_provenance_only": true,
+  "presentation_note": "Selected successful test examples; frozen trained model; no historical outputs required for inference"
+}

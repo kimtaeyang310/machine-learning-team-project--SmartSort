@@ -42,10 +42,18 @@ class JointClassifier:
         self.sha = metadata["sha256"]["model.pt"]
 
     def predict(self, image_path):
+        return self._predict_source(resolve(image_path), str(resolve(image_path)))
+
+    def predict_frame(self, frame):
+        """Classify one OpenCV BGR image without writing a temporary file."""
+        if not isinstance(frame, np.ndarray) or frame.dtype != np.uint8 or frame.ndim != 3 or frame.shape[2] != 3 or not frame.size:
+            raise ValueError("frame must be a nonempty uint8 BGR image")
+        return self._predict_source(frame, "")
+
+    def _predict_source(self, source, image_path):
         from src.agent import decide_next_action
-        path = resolve(image_path)
         start = perf_counter()
-        result = self.engine.predict(path)
+        result = self.engine.predict(source)
         # Preserve joint class probabilities; agent confidence uses the winning
         # JOINT score, without renormalizing away uncertainty over fruit kinds.
         accepted = result["status"] == "ok"
@@ -54,7 +62,7 @@ class JointClassifier:
         stage_scores = {s: p for label, p in result["probabilities"].items()
                         for f, s in [label.split("_", 1)] if f == fruit}
         result["nine_probabilities"] = result["probabilities"]
-        result.update(image_path=str(path), fruit=fruit if accepted else "unknown",
+        result.update(image_path=image_path, fruit=fruit if accepted else "unknown",
                       ripeness=stage if accepted else None, model=getattr(self, "model_name", "yolov8n_cls_joint_nine"),
                       probabilities=stage_scores if accepted else None, error="")
         result["fruit_identity"] = {"accepted": accepted, "candidate_fruit": fruit,
@@ -146,7 +154,8 @@ def train(epochs=6):
     run = ROOT / "outputs" / "joint_nine" / ("training_" + stamp())
     run.mkdir(parents=True)
     samples = json.loads((MODEL_DIR / "split_manifest.json").read_text(encoding="utf-8"))
-    from src.joint_labels import refresh_labels
+    from src.joint_labels import refresh_labels, merge_registered_samples
+    samples = merge_registered_samples(samples, ROOT / 'data/metadata/mandarin_1029_manifest.json')
     samples, label_changes = refresh_labels(samples, ROOT / "data" / "metadata" / "fruit_labels.csv")
     dump(run / "label_changes.json", label_changes)
     print(f"최신 CSV 숙도·split 반영: {len(label_changes)}장 (train 내부 검증 분할 유지)")

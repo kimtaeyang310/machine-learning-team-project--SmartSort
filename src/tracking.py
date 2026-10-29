@@ -1,0 +1,174 @@
+"""Geometry/appearance tracking and voting on complete interior observations.
+
+No source-photo names, slide timings, or known labels are used. Stable means
+consistent model outputs, not verified ripeness or improved recognition accuracy.
+"""
+from dataclasses import dataclass,field
+from collections import deque,Counter
+import copy
+import math
+import numpy as np
+
+
+def appearance(frame,box):
+    import cv2
+    x,y,w,h=box
+    hsv=cv2.cvtColor(frame[y:y+h,x:x+w],cv2.COLOR_BGR2HSV)
+    mask=cv2.inRange(hsv,np.array([0,45,20]),np.array([179,255,255]))
+    histogram=cv2.calcHist([hsv],[0,1],mask,[18,8],[0,180,0,256]).ravel()
+    return histogram/max(float(np.linalg.norm(histogram)),1e-12)
+
+
+def center(box):
+    x,y,w,h=box
+    return np.array([x+w/2,y+h/2],dtype=float)
+
+
+def result_key(result):
+    if result is None or result.get('status')=='failed':
+        return None
+    if result['status']=='unknown':
+        return ('unknown',)
+    if result['status']=='ok':
+        return ('ok',result['fruit'],result['ripeness'])
+    return None
+
+
+@dataclass
+class Track:
+    id:int
+    box:tuple
+    last_seen:int
+    signature:np.ndarray
+    velocity:np.ndarray=field(default_factory=lambda:np.zeros(2))
+    hits:int=1
+    full_run:int=0
+    areas:deque=field(default_factory=lambda:deque(maxlen=4))
+    history:deque=field(default_factory=deque)
+    stable:tuple|None=None
+    representative:dict|None=None
+    evidence_frame:int|None=None
+    last_support_frame:int|None=None
+    challenger:tuple|None=None
+    challenger_hits:int=0
+    ambiguous_hits:int=0
+    unstable:bool=False
+    switches:int=0
+
+
+class FruitTracker:
+    def __init__(self,max_missed=6):
+        self.max_missed=max_missed
+        self.tracks={}
+        self.next_id=1
+        self.finished=[]
+
+    def update(self,boxes,frame,frame_index):
+        expired=[key for key,t in self.tracks.items() if frame_index-t.last_seen>self.max_missed]
+        for key in expired:
+            self.finished.append(self.tracks.pop(key))
+        signatures=[appearance(frame,box) for box in boxes]
+        pairs=[]
+        for key,t in self.tracks.items():
+            elapsed=frame_index-t.last_seen
+            predicted=center(t.box)+t.velocity*elapsed
+            for index,box in enumerate(boxes):
+                distance=float(np.linalg.norm(center(box)-predicted))
+                gate=max(45.,max(t.box[2:])*.75+np.linalg.norm(t.velocity)*elapsed)
+                similarity=float(t.signature@signatures[index])
+                ratio=(box[2]*box[3])/max(t.box[2]*t.box[3],1)
+                if distance>gate or similarity<.15 or not .2<=ratio<=5.:
+                    continue
+                cost=distance/gate+.6*(1-similarity)+.15*abs(math.log(ratio))
+                pairs.append((cost,key,index))
+        assigned={};used=set()
+        for cost,key,index in sorted(pairs):
+            if key in used or index in assigned:
+                continue
+            t=self.tracks[key]
+            elapsed=frame_index-t.last_seen
+            velocity=(center(boxes[index])-center(t.box))/max(1,elapsed)
+            t.velocity=.5*t.velocity+.5*velocity
+            t.box=tuple(boxes[index]);t.last_seen=frame_index;t.hits+=1
+            t.signature=.8*t.signature+.2*signatures[index]
+            t.signature/=max(float(np.linalg.norm(t.signature)),1e-12)
+            assigned[index]=t;used.add(key)
+        for index,box in enumerate(boxes):
+            if index not in assigned:
+                t=Track(self.next_id,tuple(box),frame_index,signatures[index])
+                self.tracks[t.id]=t;assigned[index]=t;self.next_id+=1
+        return [assigned[i] for i in range(len(boxes))]
+
+
+def interior_observation(track,frame_shape,padding=.18):
+    height,width=frame_shape[:2]
+    x,y,w,h=track.box
+    margin=max(12,round(max(w,h)*padding))
+    interior=(x>=margin and y>=margin and x+w<=width-margin and y+h<=height-margin)
+    area=w*h
+    stable_size=not track.areas or min(area,track.areas[-1])/max(area,track.areas[-1])>=.9
+    track.areas.append(area)
+    track.full_run=track.full_run+1 if interior and stable_size else 0
+    return track.full_run>=3
+
+
+class TemporalVote:
+    def __init__(self,fps,min_samples=5,window=15,support=.8,sample_seconds=.1,switch_confirmations=3,hold_seconds=1.5):
+        self.min_samples=min_samples;self.window=window;self.support=support
+        self.interval=max(1,round(fps*sample_seconds))
+        self.switch_confirmations=switch_confirmations
+        self.max_age=max(1,round(fps*hold_seconds))
+
+    def needs_sample(self,track,frame_index,eligible):
+        return eligible and (not track.history or frame_index-track.history[-1]['frame']>=self.interval)
+
+    def add(self,track,result,frame_index):
+        key=result_key(result)
+        if key is None:
+            return
+        track.history.append({'frame':frame_index,'key':key,'prediction':copy.deepcopy(result)})
+        while len(track.history)>self.window:
+            track.history.popleft()
+        counts=Counter(s['key'] for s in track.history)
+        leader,count=counts.most_common(1)[0]
+        ratio=count/len(track.history)
+        consensus=(len(track.history)>=self.min_samples and count>=self.min_samples and ratio>=self.support)
+        if track.stable==key:
+            track.last_support_frame=frame_index
+        if consensus:
+            track.ambiguous_hits=0;track.unstable=False
+            if track.stable is None or track.stable==leader:
+                track.stable=leader;track.challenger=None;track.challenger_hits=0
+            else:
+                track.challenger_hits=track.challenger_hits+1 if track.challenger==leader else 1
+                track.challenger=leader
+                if track.challenger_hits>=self.switch_confirmations:
+                    track.stable=leader;track.switches+=1
+                    track.challenger=None;track.challenger_hits=0
+            matches=[s for s in track.history if s['key']==track.stable]
+            if matches:
+                track.representative=copy.deepcopy(matches[-1]['prediction'])
+                track.evidence_frame=matches[-1]['frame']
+                track.last_support_frame=matches[-1]['frame']
+        else:
+            track.challenger=None;track.challenger_hits=0
+            if len(track.history)>=self.min_samples and ratio<.6:
+                track.ambiguous_hits+=1
+                track.unstable=track.ambiguous_hits>=3
+
+    def display(self,track,frame_index,eligible):
+        age=frame_index-track.last_support_frame if track.last_support_frame is not None else None
+        if track.representative is None or age is None or age>self.max_age:
+            result={'status':'pending','fruit':'unknown','ripeness':None,'temporal_state':'collecting' if eligible else 'edge_wait'}
+        elif track.unstable:
+            result={'status':'pending','fruit':'unknown','ripeness':None,'temporal_state':'unstable'}
+        else:
+            result=copy.deepcopy(track.representative)
+            result['temporal_state']='stable' if eligible else 'held_at_edge'
+            if eligible and track.challenger is not None:
+                result['temporal_state']='confirming_change'
+        counts=Counter(s['key'] for s in track.history)
+        result.update(track_id=track.id,temporal_samples=len(track.history),
+            temporal_support=counts.get(track.stable,0),evidence_frame=track.evidence_frame,
+            evidence_age_frames=age)
+        return result
