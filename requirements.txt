@@ -10,3 +10,4 @@ ultralytics==8.4.177
 torch
 torchvision
 Pillow
+ollama
