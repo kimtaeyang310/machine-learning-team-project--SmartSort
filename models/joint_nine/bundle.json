@@ -1,11 +1,11 @@
 {
   "format": 1,
   "imgsz": 224,
-  "source": "C:\\Users\\user1\\Desktop\\smartfarm_data\\machine-learning-team-project--SmartSort\\outputs\\joint_nine\\training_20261027T072652242219Z",
+  "source": "C:\\Users\\user1\\OneDrive\\바탕 화면\\team_project\\SmartSort\\machine-learning-team-project--SmartSort\\outputs\\joint_nine\\experiment_tomato_test40_train_20261030T012016831544Z",
   "model_name": "yolo26n_cls_joint_nine",
   "sha256": {
-    "model.pt": "4e11547896c219f7a6978a57dcb558e275f63cae8a58aa35e472001181accee9",
-    "policy.joblib": "c71b26d5791cbf4b126cd3bd62152cc4c88c84f71cbe92f97234d3cd81c8f9b9",
-    "split_manifest.json": "47b56770411a5d72fed8cf3fd18e3089664f4c6258c00526e282181688494581"
+    "model.pt": "7b42b3acdc89ead62bd156ca070f3c468ccc1235d62d3281190f133973163bb8",
+    "policy.joblib": "e7b1f33e57e271bdfa028544f628cf37061eb674bef84d1cc07ad561917e7379",
+    "split_manifest.json": "67eb839f148b1689bd18243e8ab83a5e39771c8202e1134f653e8d72e4d6c85c"
   }
 }

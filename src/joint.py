@@ -155,7 +155,8 @@ def train(epochs=6):
     run.mkdir(parents=True)
     samples = json.loads((MODEL_DIR / "split_manifest.json").read_text(encoding="utf-8"))
     from src.joint_labels import refresh_labels, merge_registered_samples
-    samples = merge_registered_samples(samples, ROOT / 'data/metadata/mandarin_1029_manifest.json')
+    for registry in sorted((ROOT / 'data/metadata').glob('mandarin_*_manifest.json')):
+        samples = merge_registered_samples(samples, registry)
     samples, label_changes = refresh_labels(samples, ROOT / "data" / "metadata" / "fruit_labels.csv")
     dump(run / "label_changes.json", label_changes)
     print(f"최신 CSV 숙도·split 반영: {len(label_changes)}장 (train 내부 검증 분할 유지)")

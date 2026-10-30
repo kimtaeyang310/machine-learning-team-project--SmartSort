@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "imgsz": 224,
+  "source": "C:\\Users\\user1\\OneDrive\\바탕 화면\\team_project\\SmartSort\\machine-learning-team-project--SmartSort\\outputs\\joint_nine\\experiment_tomato_unripe_test100_20261030T004914854829Z",
+  "model_name": "yolo26n_cls_joint_nine",
+  "sha256": {
+    "model.pt": "9acb871d622da636376386b6488ab71e6b24aaed4f46ef46ed5ef391ceb47fce",
+    "policy.joblib": "9f681ce1c7131b1dac9be3d89ef617d936f6b9af4f2d5088deabdce41dec7487",
+    "split_manifest.json": "21f5fe69a02fc2f3d465f35c62adce1d6f6182748940c9778fd48e1511645bce"
+  }
+}
