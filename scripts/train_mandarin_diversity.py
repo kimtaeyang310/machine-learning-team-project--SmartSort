@@ -1,4 +1,5 @@
 """Fixed-architecture diversity experiment with old-only training control."""
+# 모델 구조를 고정하고 귤 추가 자료를 포함한 학습과 기존 자료만의 대조 학습을 비교합니다.
 from pathlib import Path
 from collections import Counter
 import json

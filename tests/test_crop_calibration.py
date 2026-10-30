@@ -1,4 +1,5 @@
 """Crop evaluation must count missed fruit and keep unknown acceptance separate."""
+# 미검출도 평가에 포함하고 미지원 과일 오수락을 별도로 세는지 검사합니다.
 import unittest
 from unittest.mock import Mock
 import numpy as np

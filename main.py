@@ -34,6 +34,7 @@ def main():
 
     choice = input("실행할 작업을 선택하세요: ").strip()
 
+    # 선택한 메뉴에 필요한 기능을 불러옵니다. 실제 학습·평가·예측 구현은 src에 있습니다.
     if choice == "1":
         from src.joint import train
         train()

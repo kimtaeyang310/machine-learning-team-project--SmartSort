@@ -1,4 +1,6 @@
 """Portable selected-test video presentation; required assets live outside outputs."""
+# 설정의 사진을 움직이는 영상으로 만든 뒤 추적 분류 시연을 실행합니다.
+# 경로를 프로젝트 내부 상대경로로 제한하여 다른 컴퓨터에서도 자료를 찾도록 합니다.
 from pathlib import Path,PureWindowsPath
 import argparse
 import json
@@ -10,6 +12,7 @@ from src.paths import ROOT
 DEFAULT_CONFIG='config/presentation.json'
 
 
+# 절대경로와 프로젝트 밖으로 빠져나가는 경로를 거부합니다.
 def config_path(value,root):
     if not isinstance(value,str) or not value.strip():
         raise ValueError('시연 설정의 파일 경로를 확인해 주세요.')
@@ -22,6 +25,7 @@ def config_path(value,root):
     return resolved
 
 
+# 설정과 사진·모델 파일 존재 여부 및 입력·출력 충돌을 검사합니다.
 def load_presentation(config=DEFAULT_CONFIG,*,root=ROOT):
     root=Path(root).resolve()
     path=config_path(config,root)
@@ -38,6 +42,7 @@ def load_presentation(config=DEFAULT_CONFIG,*,root=ROOT):
     return settings,images,model,source,output
 
 
+# 사진 비율을 유지해 흰 배경 위에서 일정 간격으로 이동하는 입력 영상을 만듭니다.
 def build_conveyor(images,destination,settings):
     width,height,fps,side=(int(settings[k]) for k in ('width','height','fps','image_size'))
     speed,interval=float(settings['speed']),float(settings['spacing_seconds'])
@@ -65,6 +70,7 @@ def build_conveyor(images,destination,settings):
     return total
 
 
+# 설정 검사와 영상 생성 후 지정된 모델로 추적 시연을 실행합니다.
 def run_presentation(*,display=True,config=DEFAULT_CONFIG):
     from src.video_tracking import process_tracked_video
     settings,images,model,source,output=load_presentation(config)

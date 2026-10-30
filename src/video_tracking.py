@@ -1,4 +1,6 @@
 """Track fruit and aggregate only sufficiently interior, size-stable views."""
+# 영상 처리와 추적·투표를 연결하며 화면 안쪽에서 크기가 안정된 관측만 투표에 사용합니다.
+# 결과 영상과 프레임별 판단 근거를 담은 JSON을 저장합니다.
 from pathlib import Path
 from collections import Counter,defaultdict
 import json
@@ -11,88 +13,36 @@ from src.tracking import FruitTracker,TemporalVote,interior_observation,result_k
 from src.paths import project_path
 
 
-def count_changes(keys):
-    return sum(a!=b for a,b in zip(keys,keys[1:]))
+def _classify_tracked_frame(frame, index, classifier, tracker, vote, min_area, compare_framewise):
+    """한 프레임의 검출·추적·투표를 수행하고 관측 목록과 실제 추론 횟수를 반환합니다."""
+    raw_calls = 0
+    boxes=detect_regions(frame,min_area)
+    tracks=tracker.update(boxes,frame,index)
+    detections=[]
+    for box,track in zip(boxes,tracks):
+        eligible=interior_observation(track,frame.shape)
+        sample=vote.needs_sample(track,index,eligible)
+        raw=None
+        # 비교 모드는 매 프레임 추론하지만 투표에는 적합한 간격의 관측만 추가합니다.
+        if compare_framewise or sample:
+            try:
+                raw=classifier.predict_frame(crop_region(frame,box))
+            except (ValueError,OSError,RuntimeError) as error:
+                raw={'status':'failed','error':str(error)}
+            raw_calls+=1
+        if sample:
+            vote.add(track,raw,index)
+        prediction=vote.display(track,index,eligible)
+        row={'box':list(box),'track_id':track.id,'eligible_full_view':eligible,
+            'track_confirmed':track.hits>=3,
+            'used_for_vote':bool(sample and result_key(raw) is not None),
+            'prediction':prediction,'raw_prediction':raw}
+        detections.append(row)
+    return detections, raw_calls
 
 
-def process_tracked_video(source,destination,*,display=False,min_area=500,model_dir=None,compare_framewise=False):
-    source,destination=project_path(source),project_path(destination)
-    if source==destination:
-        raise ValueError('Input and output video must be different files')
-    destination.parent.mkdir(parents=True,exist_ok=True)
-    cap=cv2.VideoCapture(str(source))
-    if not cap.isOpened():
-        raise ValueError(f'Cannot open video: {source}')
-    writer=None
-    records=[];per_track=defaultdict(list);times=[];raw_calls=0
-    started=perf_counter()
-    try:
-        fps=cap.get(cv2.CAP_PROP_FPS)
-        if not np.isfinite(fps) or fps<=0:
-            raise ValueError('Invalid source FPS')
-        if model_dir is None:
-            model_dir=ROOT/'models/joint_nine_crop'
-            if not (model_dir/'bundle.json').is_file():
-                model_dir=MODEL_DIR
-        classifier,font=load_classifier(model_dir),load_font()
-        tracker=FruitTracker(max_missed=max(2,round(fps*.2)))
-        vote=TemporalVote(fps)
-        index=0
-        while True:
-            ok,frame=cap.read()
-            if not ok:
-                break
-            tick=perf_counter()
-            if writer is None:
-                height,width=frame.shape[:2]
-                writer=cv2.VideoWriter(str(destination),cv2.VideoWriter_fourcc(*'mp4v'),fps,(width,height))
-                if not writer.isOpened():
-                    raise RuntimeError('Cannot open output video writer')
-            boxes=detect_regions(frame,min_area)
-            tracks=tracker.update(boxes,frame,index)
-            detections=[]
-            for box,track in zip(boxes,tracks):
-                eligible=interior_observation(track,frame.shape)
-                sample=vote.needs_sample(track,index,eligible)
-                raw=None
-                if compare_framewise or sample:
-                    try:
-                        raw=classifier.predict_frame(crop_region(frame,box))
-                    except (ValueError,OSError,RuntimeError) as error:
-                        raw={'status':'failed','error':str(error)}
-                    raw_calls+=1
-                if sample:
-                    vote.add(track,raw,index)
-                prediction=vote.display(track,index,eligible)
-                row={'box':list(box),'track_id':track.id,'eligible_full_view':eligible,
-                    'track_confirmed':track.hits>=3,
-                    'used_for_vote':bool(sample and result_key(raw) is not None),
-                    'prediction':prediction,'raw_prediction':raw}
-                detections.append(row)
-                per_track[track.id].append({'frame':index,**row})
-            drawn=[r for r in detections if r['track_confirmed']]
-            rendered=annotate(frame,drawn,font)
-            writer.write(rendered)
-            times.append((perf_counter()-tick)*1000)
-            records.append({'frame':index,'time_seconds':index/fps,'detections':detections})
-            if index in (6,30,90,150,210,270,330,390,450):
-                cv2.imencode('.jpg',rendered)[1].tofile(str(destination.with_name(f'{destination.stem}_frame_{index:04d}.jpg')))
-            if display:
-                cv2.imshow('SmartSort tracking - Q to stop',rendered)
-                if cv2.waitKey(max(1,round(1000/fps)))&0xFF==ord('q'):
-                    index+=1
-                    break
-            index+=1
-            if index%90==0:
-                print('Tracked frames',index,flush=True)
-        if index==0:
-            raise ValueError('Video has no readable frames')
-    finally:
-        cap.release()
-        if writer is not None:
-            writer.release()
-        if display:
-            cv2.destroyAllWindows()
+def summarize_tracks(per_track, fps, compare_framewise=False):
+    """개체별 관측 기록에서 표시 변화·대기 시간·투표 통계를 계산합니다."""
     summaries=[]
     for track_id,rows in per_track.items():
         raw=[result_key(r['raw_prediction']) for r in rows if result_key(r['raw_prediction']) is not None]
@@ -126,6 +76,78 @@ def process_tracked_video(source,destination,*,display=False,min_area=500,model_
         'total_detected_object_frames':sum(r['visible_frames'] for r in summaries),
         'drawn_object_frames':sum(r['drawn_frames'] for r in summaries),
         'pending_object_frames':sum(r['visible_frames']-r['stable_display_frames'] for r in summaries)}
+    return summaries, metrics
+
+
+# 연속한 두 유효 결과가 달라진 횟수로 표시 흔들림을 측정합니다.
+def count_changes(keys):
+    return sum(a!=b for a,b in zip(keys,keys[1:]))
+
+
+# 검출, ID 연결, 관측 선별, 분류·투표, 표시·기록 순서로 처리합니다.
+def process_tracked_video(source,destination,*,display=False,min_area=500,model_dir=None,compare_framewise=False):
+    source,destination=project_path(source),project_path(destination)
+    if source==destination:
+        raise ValueError('Input and output video must be different files')
+    destination.parent.mkdir(parents=True,exist_ok=True)
+    cap=cv2.VideoCapture(str(source))
+    if not cap.isOpened():
+        raise ValueError(f'Cannot open video: {source}')
+    writer=None
+    records=[];per_track=defaultdict(list);times=[];raw_calls=0
+    started=perf_counter()
+    try:
+        fps=cap.get(cv2.CAP_PROP_FPS)
+        if not np.isfinite(fps) or fps<=0:
+            raise ValueError('Invalid source FPS')
+        if model_dir is None:
+            model_dir=ROOT/'models/joint_nine_crop'
+            if not (model_dir/'bundle.json').is_file():
+                model_dir=MODEL_DIR
+        classifier,font=load_classifier(model_dir),load_font()
+        tracker=FruitTracker(max_missed=max(2,round(fps*.2)))
+        vote=TemporalVote(fps)
+        index=0
+        while True:
+            ok,frame=cap.read()
+            if not ok:
+                break
+            tick=perf_counter()
+            if writer is None:
+                height,width=frame.shape[:2]
+                writer=cv2.VideoWriter(str(destination),cv2.VideoWriter_fourcc(*'mp4v'),fps,(width,height))
+                if not writer.isOpened():
+                    raise RuntimeError('Cannot open output video writer')
+            detections, calls = _classify_tracked_frame(
+                frame, index, classifier, tracker, vote, min_area, compare_framewise)
+            raw_calls += calls
+            for row in detections:
+                per_track[row["track_id"]].append({"frame": index, **row})
+            # 잠깐 생겼다 사라지는 영역은 세 번 관측되기 전까지 화면에 표시하지 않습니다.
+            drawn=[r for r in detections if r['track_confirmed']]
+            rendered=annotate(frame,drawn,font)
+            writer.write(rendered)
+            times.append((perf_counter()-tick)*1000)
+            records.append({'frame':index,'time_seconds':index/fps,'detections':detections})
+            if index in (6,30,90,150,210,270,330,390,450):
+                cv2.imencode('.jpg',rendered)[1].tofile(str(destination.with_name(f'{destination.stem}_frame_{index:04d}.jpg')))
+            if display:
+                cv2.imshow('SmartSort tracking - Q to stop',rendered)
+                if cv2.waitKey(max(1,round(1000/fps)))&0xFF==ord('q'):
+                    index+=1
+                    break
+            index+=1
+            if index%90==0:
+                print('Tracked frames',index,flush=True)
+        if index==0:
+            raise ValueError('Video has no readable frames')
+    finally:
+        cap.release()
+        if writer is not None:
+            writer.release()
+        if display:
+            cv2.destroyAllWindows()
+    summaries, metrics = summarize_tracks(per_track, fps, compare_framewise)
     summary={'source':str(source),'output':str(destination),'frames':index,'fps':fps,'duration_seconds':index/fps,
         'wall_seconds':perf_counter()-started,'mean_processing_ms':float(np.mean(times)),
         'classifier_calls':raw_calls,'model_dir':str(classifier.directory),'model_sha256':classifier.sha,

@@ -1,4 +1,5 @@
 """Create a concise report for the M06-M09 retraining run."""
+# M06~M09 관련 재학습 실행 결과를 읽어 비교 보고서로 요약합니다.
 from pathlib import Path
 import json
 from collections import Counter

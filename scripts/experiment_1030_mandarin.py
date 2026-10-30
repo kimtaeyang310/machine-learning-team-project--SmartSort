@@ -1,4 +1,6 @@
 """Group augmented unripe citrus, register holdouts, retrain and score."""
+# 추가 미숙 귤과 증강 사진을 그룹으로 묶고 보류 자료를 등록한 뒤 재학습·평가합니다.
+# 증강본이 원본과 다른 데이터 분할에 들어가지 않도록 묶는 것이 핵심입니다.
 import csv
 import hashlib
 import json
@@ -16,49 +18,8 @@ from src.joint_labels import merge_registered_samples, refresh_labels
 from scripts.experiment_m06_m09_test import score
 
 
-def main():
-    torch.set_num_threads(4)
-    cv2.setNumThreads(4)
-    run = ROOT / 'outputs/joint_nine' / ('experiment_1030_unripe_' + stamp())
-    run.mkdir(parents=True)
-    print('RUN', run, flush=True)
-    paths = sorted((ROOT / 'data/raw/1030mandarin').glob('*.jpg'))
-    if len(paths) != 850:
-        raise ValueError(f'Expected 850 images, found {len(paths)}')
-    shutil.copytree(MODEL_DIR, run / 'previous_bundle')
-    labels = ROOT / 'data/metadata/fruit_labels.csv'
-    shutil.copy2(labels, run / 'fruit_labels.before.csv')
-    samples = json.loads((MODEL_DIR / 'split_manifest.json').read_text(encoding='utf-8'))
-    if any(s['path'].startswith('data/raw/1030mandarin/') for s in samples):
-        raise ValueError('1030 data already published; reuse the registered split with python -m src.joint train')
-    for registry in sorted((ROOT / 'data/metadata').glob('mandarin_*_manifest.json')):
-        if registry.name == 'mandarin_1030_manifest.json':
-            continue
-        samples = merge_registered_samples(samples, registry)
-    old_hashes = {s['sha256'] for s in samples}
-    encoder = NinePredictor(MODEL_DIR / 'model.pt', 224)
-    sift = cv2.SIFT_create(nfeatures=300)
-    vectors, features, digests = [], [], []
-    thumbs = []
-    for i, path in enumerate(paths):
-        digest = sha(path)
-        if digest in old_hashes:
-            raise ValueError(f'New data overlaps old data: {path}')
-        image = cv2.imdecode(np.fromfile(str(path), np.uint8), cv2.IMREAD_COLOR)
-        if image is None:
-            raise ValueError(f'Unreadable image: {path}')
-        vectors.append(encoder.raw(path)[1])
-        small = cv2.resize(image, (256, 256))
-        variants = []
-        for gray in (cv2.cvtColor(small, cv2.COLOR_BGR2GRAY), cv2.cvtColor(cv2.flip(small, 1), cv2.COLOR_BGR2GRAY)):
-            keypoints, descriptors = sift.detectAndCompute(gray, None)
-            variants.append((np.float32([k.pt for k in keypoints]), descriptors))
-        features.append(variants)
-        digests.append(digest)
-        thumbs.append(cv2.cvtColor(cv2.resize(image, (100, 100)), cv2.COLOR_BGR2RGB))
-        if (i + 1) % 100 == 0:
-            print('Grouping features', i + 1, '/850', flush=True)
-    vectors = np.asarray(vectors)
+def group_matching_sources(paths, vectors, features, digests):
+    """유사 사진 후보를 기하 정합으로 확인하여 원본 그룹과 일치 근거를 반환합니다."""
     similarity = vectors @ vectors.T
     parent = list(range(len(paths)))
 
@@ -117,6 +78,59 @@ def main():
     groups = list(clusters.values())
     if len(groups) < 8:
         raise ValueError('Too few independent inferred source groups for four-way split')
+    return groups, matches
+
+
+def extract_grouping_features(paths, old_hashes):
+    """중복 원본을 검사하고 모델 특징·기하 특징·미리보기를 추출합니다."""
+    encoder = NinePredictor(MODEL_DIR / 'model.pt', 224)
+    sift = cv2.SIFT_create(nfeatures=300)
+    vectors, features, digests = [], [], []
+    thumbs = []
+    for i, path in enumerate(paths):
+        digest = sha(path)
+        if digest in old_hashes:
+            raise ValueError(f'New data overlaps old data: {path}')
+        image = cv2.imdecode(np.fromfile(str(path), np.uint8), cv2.IMREAD_COLOR)
+        if image is None:
+            raise ValueError(f'Unreadable image: {path}')
+        vectors.append(encoder.raw(path)[1])
+        small = cv2.resize(image, (256, 256))
+        variants = []
+        for gray in (cv2.cvtColor(small, cv2.COLOR_BGR2GRAY), cv2.cvtColor(cv2.flip(small, 1), cv2.COLOR_BGR2GRAY)):
+            keypoints, descriptors = sift.detectAndCompute(gray, None)
+            variants.append((np.float32([k.pt for k in keypoints]), descriptors))
+        features.append(variants)
+        digests.append(digest)
+        thumbs.append(cv2.cvtColor(cv2.resize(image, (100, 100)), cv2.COLOR_BGR2RGB))
+        if (i + 1) % 100 == 0:
+            print('Grouping features', i + 1, '/850', flush=True)
+    vectors = np.asarray(vectors)
+    return vectors, features, digests, thumbs
+
+
+def main():
+    torch.set_num_threads(4)
+    cv2.setNumThreads(4)
+    run = ROOT / 'outputs/joint_nine' / ('experiment_1030_unripe_' + stamp())
+    run.mkdir(parents=True)
+    print('RUN', run, flush=True)
+    paths = sorted((ROOT / 'data/raw/1030mandarin').glob('*.jpg'))
+    if len(paths) != 850:
+        raise ValueError(f'Expected 850 images, found {len(paths)}')
+    shutil.copytree(MODEL_DIR, run / 'previous_bundle')
+    labels = ROOT / 'data/metadata/fruit_labels.csv'
+    shutil.copy2(labels, run / 'fruit_labels.before.csv')
+    samples = json.loads((MODEL_DIR / 'split_manifest.json').read_text(encoding='utf-8'))
+    if any(s['path'].startswith('data/raw/1030mandarin/') for s in samples):
+        raise ValueError('1030 data already published; reuse the registered split with python -m src.joint train')
+    for registry in sorted((ROOT / 'data/metadata').glob('mandarin_*_manifest.json')):
+        if registry.name == 'mandarin_1030_manifest.json':
+            continue
+        samples = merge_registered_samples(samples, registry)
+    old_hashes = {s['sha256'] for s in samples}
+    vectors, features, digests, thumbs = extract_grouping_features(paths, old_hashes)
+    groups, matches = group_matching_sources(paths, vectors, features, digests)
     # Assign whole source groups; balance image counts toward 60/10/10/20.
     rng = np.random.default_rng(42)
     rng.shuffle(groups)

@@ -1,4 +1,6 @@
 """Crop-domain calibration experiment with group-separated selection and testing."""
+# 사진을 영상과 비슷한 크기로 줄여 과일 영역을 잘라내고 특징을 캐시합니다.
+# 시연 사진과 비슷한 그룹은 제외하고 특징 배열과 감사 기록을 후속 정책 선택에 사용합니다.
 from pathlib import Path
 from collections import Counter
 import json
@@ -11,6 +13,7 @@ from src.joint_core import NinePredictor, CLASSES, FRUITS, dump
 from src.video import detect_regions, crop_region
 
 
+# 긴 변을 320픽셀로 맞추면서 가로세로 비율을 유지합니다.
 def prepare_frame(image):
     h,w = image.shape[:2]
     scale = 320 / max(h,w)
@@ -60,6 +63,7 @@ def main():
     predictor = NinePredictor(MODEL_DIR/'model.pt',224)
     import torch
     torch.set_num_threads(4)
+    # 검출하지 못하거나 제외된 사진은 NaN으로 남겨 평가에서 누락 원인을 구분합니다.
     probabilities = np.full((len(samples),len(CLASSES)),np.nan)
     embeddings = None
     for i,(s,crop) in enumerate(zip(samples,crops)):

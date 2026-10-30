@@ -1,7 +1,7 @@
+"""기획서 생성 스크립트의 문구를 과수원 용도로 교체하는 일회성 도구입니다."""
 from pathlib import Path
-p=Path('tmp/pdfs/build_proposal.py')
-s=p.read_text(encoding='utf-8-sig')
-replacements={
+
+REPLACEMENTS = {
 '사진 한 장의 숙도 판별을 매장 운영의 다음 행동으로 연결합니다.':'사진 한 장의 숙도 판별을 과수원의 선별·출하 작업으로 연결합니다.',
 '판매·보관 우선순위':'선별·출하 우선순위',
 '입고·수량·판매 계획을 함께 해석':'수확일·수량·출하 계획을 함께 해석',
@@ -30,7 +30,18 @@ replacements={
 '검수 소요 시간 20% 단축':'숙도 확인 시간 20% 단축',
 '동일 과업의 기존 방식과 서비스 사용 시간을 비교합니다. 파일럿 목표입니다.':'동일한 수확물의 숙도 확인 시간을 기존 방식과 비교합니다. 파일럿 목표입니다.',
 }
-for a,b in replacements.items():
- if a not in s: raise ValueError(a)
- s=s.replace(a,b)
-p.write_text(s,encoding='utf-8')
+
+
+def retarget(path=Path("tmp/pdfs/build_proposal.py")):
+    """모든 원문을 확인한 후에만 수정본을 저장합니다. import만으로는 파일을 바꾸지 않습니다."""
+    path = Path(path)
+    source = path.read_text(encoding="utf-8-sig")
+    for before, after in REPLACEMENTS.items():
+        if before not in source:
+            raise ValueError(before)
+        source = source.replace(before, after)
+    path.write_text(source, encoding="utf-8")
+
+
+if __name__ == "__main__":
+    retarget()

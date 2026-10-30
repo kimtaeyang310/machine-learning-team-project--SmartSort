@@ -1,4 +1,5 @@
 """Move exactly 100 fitting unripe tomato photos to Test by whole groups."""
+# 미숙 토마토 학습 사진 중 정확히 100장을 그룹 단위로 Test로 옮기는 실험입니다.
 import csv
 import json
 import shutil

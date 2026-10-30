@@ -1,4 +1,5 @@
 """Diagnose held-out M10 after policy selection and report diversity effects."""
+# 정책 선택 후 보류 그룹 M10과 귤 자료 다양성 추가 효과를 분석해 보고서로 남깁니다.
 from pathlib import Path
 import copy
 import json

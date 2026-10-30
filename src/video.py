@@ -3,6 +3,8 @@
 This is a color/foreground baseline, not a trained object detector. No source
 photo coordinates, labels, slide timestamps, or previous predictions are used.
 """
+# 영상의 한 장면에서 색이 있는 전경을 찾고 잘라낸 영역(ROI)을 분류합니다.
+# 중성 배경을 가정한 HSV 규칙이며 일반적인 학습 기반 객체 검출기는 아닙니다.
 from pathlib import Path
 import argparse
 import json
@@ -19,10 +21,12 @@ FRUITS = {'banana': '바나나', 'mandarin': '귤', 'tomato': '토마토'}
 STAGES = {'unripe': '미숙', 'ripe': '적숙', 'overripe': '과숙'}
 
 
+# 채도 있는 전경에서 잡음을 제거하고 외곽선을 상자 좌표로 변환합니다.
 def detect_regions(frame, min_area=500):
     """Return candidate boxes from saturated foreground on a neutral background."""
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(hsv, np.array([0, 45, 20]), np.array([179, 255, 255]))
+    # 열기 연산은 작은 잡음을 없애고 뒤의 닫기 연산은 전경 내부의 작은 틈을 메웁니다.
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((11, 11), np.uint8))
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -37,6 +41,7 @@ def detect_regions(frame, min_area=500):
     return sorted(boxes)
 
 
+# 상자에 여백을 붙여 자르고 요청 시 테두리를 채워 정사각형으로 만듭니다.
 def crop_region(frame, box, padding=.18, *, square=False, pad_color='edge'):
     if padding < 0 or pad_color not in {'edge', 'white'}:
         raise ValueError('Invalid crop padding or background')
@@ -55,6 +60,7 @@ def crop_region(frame, box, padding=.18, *, square=False, pad_color='edge'):
     return crop
 
 
+# Windows·Linux 한글 폰트를 찾고 없으면 기본 폰트를 사용합니다.
 def load_font(size=19):
     for path in (Path('C:/Windows/Fonts/malgun.ttf'), Path('/usr/share/fonts/truetype/nanum/NanumGothic.ttf')):
         if path.is_file():
@@ -62,6 +68,7 @@ def load_font(size=19):
     raise RuntimeError('A Korean font is required for video labels')
 
 
+# 묶음의 구조 정보를 보고 통합 모델 또는 2단계 모델을 불러옵니다.
 def load_classifier(model_dir):
     model_dir = project_path(model_dir)
     metadata = json.loads((Path(model_dir)/'bundle.json').read_text(encoding='utf-8'))
@@ -71,6 +78,7 @@ def load_classifier(model_dir):
     return JointClassifier(model_dir)
 
 
+# PIL로 변환해 한글과 상자를 그린 뒤 OpenCV의 BGR 형식으로 돌려줍니다.
 def annotate(frame, detections, font):
     image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
     draw = ImageDraw.Draw(image)
@@ -112,6 +120,7 @@ def annotate(frame, detections, font):
     return cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
 
 
+# 프레임별 후보를 독립적으로 분류하고 주석 영상과 JSON 기록을 저장합니다.
 def process_video(source, destination, *, display=False, min_area=500, model_dir=None):
     source, destination = project_path(source), project_path(destination)
     if source == destination:

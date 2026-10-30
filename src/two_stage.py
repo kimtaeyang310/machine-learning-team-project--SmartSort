@@ -1,4 +1,6 @@
 """Experimental fruit-kind gate followed by a separate per-fruit ripeness model."""
+# 실험용 2단계 구조로 종류 모델이 받아들인 과일의 전용 숙도 모델만 실행합니다.
+# 기본 통합 9클래스 모델과 비교하는 용도입니다.
 from pathlib import Path
 import hashlib
 import json
@@ -16,6 +18,7 @@ FRUITS=tuple(sorted(('banana','mandarin','tomato')))
 STAGES=tuple(sorted(('unripe','ripe','overripe')))
 
 
+# 종류·숙도 모델의 출력 순서를 맞추는 공통 래퍼이며 특징 추출은 선택 사항입니다.
 class ClassifierHead:
     def __init__(self, checkpoint, labels, *, embedding=False, imgsz=224):
         self.labels=list(labels)
@@ -45,6 +48,7 @@ class ClassifierHead:
         return probabilities,embedding
 
 
+# 종류 확률과 특징 거리를 기준과 비교해 수락 여부·거리·임계값을 반환합니다.
 def kind_gate(probabilities, embeddings, policy, *, distances=None):
     p=np.asarray(probabilities)
     indices=p.argmax(axis=1)
@@ -70,6 +74,7 @@ def kind_gate(probabilities, embeddings, policy, *, distances=None):
     return accepted & np.isfinite(p).all(axis=1) & np.isfinite(distances),distances,thresholds
 
 
+# 두 모델 출력을 공통 형식으로 묶고 거부된 사진의 숙도를 숨깁니다.
 def format_prediction(kind_p,stage_p,accepted,distance,threshold,policy):
     fruit=FRUITS[int(np.argmax(kind_p))]
     stage=STAGES[int(np.argmax(stage_p))] if stage_p is not None else None
@@ -88,6 +93,7 @@ def format_prediction(kind_p,stage_p,accepted,distance,threshold,policy):
     return result
 
 
+# 묶음의 해시를 검증하고 종류 모델 하나와 숙도 모델 세 개를 준비합니다.
 class TwoStageClassifier:
     def __init__(self,model_dir):
         self.directory=project_path(model_dir)
@@ -104,6 +110,7 @@ class TwoStageClassifier:
         self.stages={f:ClassifierHead(self.directory/(f+'_stage.pt'),STAGES) for f in FRUITS}
         self.policy=joblib.load(self.directory/'policy.joblib')
 
+    # BGR 이미지의 종류를 판정하고 통과한 과일의 숙도 모델만 실행합니다.
     def predict_frame(self,frame):
         if not isinstance(frame,np.ndarray) or frame.dtype!=np.uint8 or frame.ndim!=3 or frame.shape[2]!=3 or not frame.size:
             raise ValueError('frame must be a nonempty uint8 BGR image')

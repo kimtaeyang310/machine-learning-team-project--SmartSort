@@ -1,4 +1,5 @@
 """Write the crop adaptation report from frozen experiment artifacts."""
+# 저장된 crop 보정 실험 결과를 읽어 학습·정책 선택 이후의 보고서를 작성합니다.
 from pathlib import Path
 import json
 from collections import Counter

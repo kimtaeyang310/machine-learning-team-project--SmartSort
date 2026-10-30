@@ -1,4 +1,5 @@
 """Presentation settings must travel with the repo and ignore the current cwd."""
+# 작업 위치가 바뀌어도 시연 자료를 찾고 잘못된 설정 경로를 거부하는지 검사합니다.
 import json
 import os
 import tempfile

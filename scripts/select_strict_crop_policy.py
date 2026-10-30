@@ -2,6 +2,8 @@
 Test metrics have already been inspected for the first candidate; final test
 numbers are explicitly exploratory regression results, not a fresh blind test.
 """
+# 미지원 과일을 과도하게 수락한 기존 기준보다 엄격한 crop 정책을 개발 자료로 선택합니다.
+# 이미 확인한 Test 결과는 새로운 독립 검증이 아니라 탐색적 회귀 평가로 해석합니다.
 from pathlib import Path
 from itertools import product
 import json

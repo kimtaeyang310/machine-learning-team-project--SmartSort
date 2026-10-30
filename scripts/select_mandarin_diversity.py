@@ -1,4 +1,5 @@
 """Select diversity/control policies without test or demonstration-based tuning."""
+# Test·시연 결과로 튜닝하지 않고 자료 다양성 추가 모델과 대조 모델의 정책을 선택합니다.
 from pathlib import Path
 import copy
 import json

@@ -1,4 +1,5 @@
 """Metric and isolation checks for the separate experiment only."""
+# 실험 지표 계산과 원본 파일로부터의 분리 조건을 검증합니다.
 from pathlib import Path
 import tempfile
 import unittest

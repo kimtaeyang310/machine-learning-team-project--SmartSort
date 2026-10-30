@@ -1,4 +1,6 @@
 """Select banana stage-specific gates using calibration/selection only."""
+# 바나나의 숙도별 판정 기준을 calibration·selection 자료로 선택합니다.
+# 과일 공통 임계값보다 세밀한 클래스별 임계값을 비교하는 단계입니다.
 from pathlib import Path
 from itertools import product
 import json

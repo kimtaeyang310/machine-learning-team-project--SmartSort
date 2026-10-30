@@ -1,4 +1,5 @@
 """Add rejection-reduction operating points without selecting on demo/test."""
+# 시연·Test 점수를 선택 기준으로 쓰지 않고 거부율 감소를 위한 추가 판정 기준을 비교합니다.
 from pathlib import Path
 import json
 import shutil

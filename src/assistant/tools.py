@@ -37,6 +37,40 @@ ALLOWED_ACTIONS = {
 RIPENESS_LABELS = {"unripe", "ripe", "overripe"}
 
 
+def _summarize_saved_timing(rows):
+    """CSV의 처리 시간을 읽어 잘못된 값은 건너뛰고 속도 지표를 계산합니다."""
+    elapsed_times = []
+
+    for row in rows:
+        try:
+            elapsed = float(row.get("total_ms") or 0)
+        except (TypeError, ValueError):
+            continue
+
+        if elapsed >= 0:
+            elapsed_times.append(elapsed)
+
+    processing_ms = sum(elapsed_times)
+    completed_count = sum(
+        row.get("status") in {"ok", "unknown"}
+        for row in rows
+    )
+
+    performance = {
+        "mean_ms": float(np.mean(elapsed_times)) if elapsed_times else None,
+        "p95_ms": (
+            float(np.percentile(elapsed_times, 95))
+            if elapsed_times else None
+        ),
+        "fps": (
+            completed_count * 1000 / processing_ms
+            if processing_ms else None
+        ),
+        "processing_ms": processing_ms,
+    }
+    return performance
+
+
 def _normalize_fruit(fruit: str | None) -> str | None:
     """None 또는 'all'은 전체 과일, 이름을 지정하면 해당 과일을 뜻합니다."""
     if fruit is None:
@@ -179,6 +213,52 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
+def _summarize_prediction_counts(rows, fruit_filter):
+    """메모리 예측과 CSV 행에 같은 집계 규칙을 적용합니다."""
+    counts_by_fruit = {
+        name: Counter({label: 0 for label in RIPENESS_LABELS})
+        for name in ALLOWED_FRUITS
+    }
+
+    all_unknown_rows = []
+    unknown_by_candidate = Counter()
+    failure_count = 0
+
+    for row in rows:
+        status = row.get("status")
+
+        if status == "ok":
+            predicted_fruit = row.get("fruit")
+            ripeness = row.get("ripeness")
+
+            if (
+                predicted_fruit in counts_by_fruit
+                and ripeness in RIPENESS_LABELS
+            ):
+                counts_by_fruit[predicted_fruit][ripeness] += 1
+
+        elif status == "unknown":
+            all_unknown_rows.append(row)
+            candidate = _candidate_fruit(row)
+            if candidate in ALLOWED_FRUITS:
+                unknown_by_candidate[candidate] += 1
+
+        elif status == "failed":
+            failure_count += 1
+
+    if fruit_filter is None:
+        ripeness_counts = {
+            name: dict(counts_by_fruit[name])
+            for name in sorted(ALLOWED_FRUITS)
+        }
+        unknown_candidate_count = sum(unknown_by_candidate.values())
+    else:
+        ripeness_counts = dict(counts_by_fruit[fruit_filter])
+        unknown_candidate_count = unknown_by_candidate[fruit_filter]
+    return {"ripeness_counts": ripeness_counts, "unknown_count": len(all_unknown_rows),
+            "unknown_candidate_count": unknown_candidate_count, "failure_count": failure_count}
+
+
 def analyze_folder(
     fruit: str | None = None,
     *,
@@ -222,46 +302,7 @@ def analyze_folder(
     # 각 이미지 결과에서 agent_decision.action == "retake"인 항목을 모읍니다.
     retake_images = _retake_items(results, fruit_filter)
 
-    counts_by_fruit = {
-        name: Counter({label: 0 for label in RIPENESS_LABELS})
-        for name in ALLOWED_FRUITS
-    }
-    unknown_total = 0
-    unknown_by_candidate = Counter()
-    failure_count = 0
-
-    for row in results:
-        status = row.get("status")
-
-        if status == "ok":
-            predicted_fruit = row.get("fruit")
-            ripeness = row.get("ripeness")
-
-            if (
-                predicted_fruit in counts_by_fruit
-                and ripeness in RIPENESS_LABELS
-            ):
-                counts_by_fruit[predicted_fruit][ripeness] += 1
-
-        elif status == "unknown":
-            unknown_total += 1
-            candidate = _candidate_fruit(row)
-
-            if candidate in ALLOWED_FRUITS:
-                unknown_by_candidate[candidate] += 1
-
-        elif status == "failed":
-            failure_count += 1
-
-    if fruit_filter is None:
-        ripeness_counts = {
-            name: dict(counts_by_fruit[name])
-            for name in sorted(ALLOWED_FRUITS)
-        }
-        unknown_candidate_count = sum(unknown_by_candidate.values())
-    else:
-        ripeness_counts = dict(counts_by_fruit[fruit_filter])
-        unknown_candidate_count = unknown_by_candidate[fruit_filter]
+    counts = _summarize_prediction_counts(results, fruit_filter)
 
     try:
         csv_path, manifest_path = save_prediction_artifacts(
@@ -280,10 +321,7 @@ def analyze_folder(
         "action": "analyze_folder",
         "fruit_filter": fruit_filter or "all",
         "image_count": len(results),
-        "ripeness_counts": ripeness_counts,
-        "unknown_count": unknown_total,
-        "unknown_candidate_count": unknown_candidate_count,
-        "failure_count": failure_count,
+        **counts,
         "retake_count": len(retake_images),
         "retake_images": retake_images,
         "performance": {
@@ -339,86 +377,16 @@ def summarize_recent(fruit: str | None = None) -> dict[str, Any]:
 
     retake_images = _retake_items(rows, fruit_filter)
 
-    counts_by_fruit = {
-        name: Counter({label: 0 for label in RIPENESS_LABELS})
-        for name in ALLOWED_FRUITS
-    }
+    counts = _summarize_prediction_counts(rows, fruit_filter)
 
-    all_unknown_rows = []
-    unknown_by_candidate = Counter()
-    failure_count = 0
-
-    for row in rows:
-        status = row.get("status")
-
-        if status == "ok":
-            predicted_fruit = row.get("fruit")
-            ripeness = row.get("ripeness")
-
-            if (
-                predicted_fruit in counts_by_fruit
-                and ripeness in RIPENESS_LABELS
-            ):
-                counts_by_fruit[predicted_fruit][ripeness] += 1
-
-        elif status == "unknown":
-            all_unknown_rows.append(row)
-            candidate = _candidate_fruit(row)
-            if candidate in ALLOWED_FRUITS:
-                unknown_by_candidate[candidate] += 1
-
-        elif status == "failed":
-            failure_count += 1
-
-    if fruit_filter is None:
-        ripeness_counts = {
-            name: dict(counts_by_fruit[name])
-            for name in sorted(ALLOWED_FRUITS)
-        }
-        unknown_candidate_count = sum(unknown_by_candidate.values())
-    else:
-        ripeness_counts = dict(counts_by_fruit[fruit_filter])
-        unknown_candidate_count = unknown_by_candidate[fruit_filter]
-
-    elapsed_times = []
-
-    for row in rows:
-        try:
-            elapsed = float(row.get("total_ms") or 0)
-        except (TypeError, ValueError):
-            continue
-
-        if elapsed >= 0:
-            elapsed_times.append(elapsed)
-
-    processing_ms = sum(elapsed_times)
-    completed_count = sum(
-        row.get("status") in {"ok", "unknown"}
-        for row in rows
-    )
-
-    performance = {
-        "mean_ms": float(np.mean(elapsed_times)) if elapsed_times else None,
-        "p95_ms": (
-            float(np.percentile(elapsed_times, 95))
-            if elapsed_times else None
-        ),
-        "fps": (
-            completed_count * 1000 / processing_ms
-            if processing_ms else None
-        ),
-        "processing_ms": processing_ms,
-    }
+    performance = _summarize_saved_timing(rows)
 
     return _json_safe({
         "ok": True,
         "csv_path": csv_path,
         "fruit_filter": fruit_filter or "all",
         "image_count": len(rows),
-        "ripeness_counts": ripeness_counts,
-        "unknown_count": len(all_unknown_rows),
-        "unknown_candidate_count": unknown_candidate_count,
-        "failure_count": failure_count,
+        **counts,
         "retake_count": len(retake_images),
         "retake_images": retake_images,
         "performance": performance,

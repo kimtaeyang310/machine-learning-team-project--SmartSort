@@ -1,4 +1,5 @@
 """Two-stage routing and refusal tests, without model weights."""
+# 실제 가중치 없이 종류별 숙도 모델 연결과 거부 결과 처리를 검사합니다.
 import unittest
 from unittest.mock import Mock
 import numpy as np
