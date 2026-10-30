@@ -1,0 +1,23 @@
+{
+  "images": [
+    "data/presentation/01_ripe_mandarin.png",
+    "data/presentation/02_grape.png",
+    "data/presentation/03_unripe_tomato.png",
+    "data/presentation/04_ripe_banana.jpg",
+    "data/presentation/05_ripe_tomato.jpg",
+    "data/presentation/06_lemon.png",
+    "data/presentation/07_unripe_banana.jpg",
+    "data/presentation/08_overripe_mandarin.png"
+  ],
+  "model_dir": "models/presentation",
+  "source": "outputs/presentation/input.mp4",
+  "output": "outputs/presentation/tracked.mp4",
+  "video": {
+    "width": 960,
+    "height": 540,
+    "fps": 30,
+    "image_size": 320,
+    "speed": 240,
+    "spacing_seconds": 2.0
+  }
+}

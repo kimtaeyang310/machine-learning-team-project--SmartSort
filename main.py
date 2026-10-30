@@ -28,6 +28,7 @@ def main():
     print("3. 폴더 전체 숙도 예측 및 시간 측정")
     print("4. 현재 통합 모델 및 모름 판정 기준 확인")
     print("5. 이전 원본 보관 위치 및 실행 방법")
+    print("6. 선별 테스트 과일 시연")
     print("0. 종료")
     print("=" * 50)
 
@@ -69,11 +70,15 @@ def main():
         print("해당 폴더로 이동한 뒤 기존 teamTC Python으로 main.py를 실행하세요.")
         print("복원 및 보관 내용: archive/before_joint_nine_20261023/RESTORE.md")
 
+    elif choice == "6":
+        from src.presentation import run_presentation
+        run_presentation(display=True)
+
     elif choice == "0":
         print("프로그램을 종료합니다.")
 
     else:
-        print("잘못된 선택입니다. 0~5 중에서 선택하세요.")
+        print("잘못된 선택입니다. 0~6 중에서 선택하세요.")
 
 
 if __name__ == "__main__":

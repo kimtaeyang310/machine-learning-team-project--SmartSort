@@ -10,7 +10,7 @@ import numpy as np
 import torch
 from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
 from ultralytics import YOLO
-from src.rejection import unfamiliarity_scores, threshold_values, calibrate_per_fruit
+from src.rejection import unfamiliarity_scores, threshold_values, calibrate_per_fruit, acceptance_mask
 ROOT = Path(__file__).resolve().parents[1]
 FRUITS = ("banana", "mandarin", "tomato")
 STAGES = ("unripe", "ripe", "overripe")
@@ -96,7 +96,8 @@ class NinePredictor:
 
     def raw(self, path):
         self.captured.clear()
-        result = self.network.predict(str(path), imgsz=self.imgsz, device="cpu", verbose=False)[0]
+        source = path if isinstance(path, np.ndarray) else str(path)
+        result = self.network.predict(source, imgsz=self.imgsz, device="cpu", verbose=False)[0]
         if set(result.names.values()) != set(CLASSES):
             raise ValueError(f"Unexpected nine-class labels: {result.names}")
         probabilities = np.zeros(9)
@@ -116,7 +117,12 @@ class NinePredictor:
         scores = unfamiliarity_scores(probabilities[None], embedding[None], self.policy["reference"])
         method = self.policy["method"]
         threshold = self.policy["thresholds"][method][fruit]
-        return {"status": "ok" if scores[method][0] <= threshold else "unknown",
+        threshold = self.policy.get("class_thresholds", {}).get(candidate, threshold)
+        accepted = bool(acceptance_mask(probabilities[None], scores, self.policy, CLASSES)[0])
+        ordered = np.sort(probabilities)
+        return {"status": "ok" if accepted else "unknown",
+                "acceptance_rule": self.policy.get("acceptance", {"kind": "distance"}),
+                "joint_confidence": float(ordered[-1]), "joint_margin": float(ordered[-1] - ordered[-2]),
                 "candidate_fruit": fruit, "candidate_ripeness": stage,
                 "candidate_class": candidate, "score": float(scores[method][0]),
                 "threshold": threshold, "method": method,

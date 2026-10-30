@@ -4,6 +4,49 @@ import numpy as np
 
 FRUITS = ("banana", "mandarin", "tomato")
 
+
+def acceptance_mask(probabilities, scores, policy, classes):
+    """Shared runtime/evaluation gate; optional hybrid config preserves old policies."""
+    probabilities = np.asarray(probabilities, dtype=float)
+    indices = probabilities.argmax(axis=1)
+    labels = [classes[i] for i in indices]
+    fruits = [label.split("_", 1)[0] for label in labels]
+    method = policy["method"]
+    thresholds = np.array([policy.get("class_thresholds", {}).get(label,
+        policy["thresholds"][method][fruit]) for label, fruit in zip(labels, fruits)])
+    values = np.asarray(scores[method])
+    valid = np.isfinite(probabilities).all(axis=1) & np.isfinite(values)
+    baseline = values <= thresholds
+    config = policy.get("acceptance", {"kind": "distance"})
+    kind = config["kind"]
+    if kind == "distance":
+        return valid & baseline
+    ordered = np.sort(probabilities, axis=1)
+    confidence = ordered[:, -1]
+    margin = ordered[:, -1] - ordered[:, -2]
+    fruit_scores = np.column_stack([probabilities[:, [i for i, label in enumerate(classes)
+        if label.startswith(fruit + "_")]].sum(axis=1) for fruit in FRUITS])
+    chosen = np.array([FRUITS.index(fruit) for fruit in fruits])
+    fruit_confidence = fruit_scores[np.arange(len(chosen)), chosen]
+    others = fruit_scores.copy()
+    others[np.arange(len(chosen)), chosen] = -np.inf
+    fruit_margin = fruit_confidence - others.max(axis=1)
+    strong = ((confidence >= config.get("min_confidence", 0.)) &
+              (margin >= config.get("min_margin", 0.)) &
+              (fruit_confidence >= config.get("min_fruit_confidence", 0.)) &
+              (fruit_margin >= config.get("min_fruit_margin", -1.)))
+    if kind == "confidence":
+        accepted = confidence >= config["min_confidence"]
+    elif kind == "margin":
+        accepted = margin >= config["min_margin"]
+    elif kind in {"rescue", "gated_distance"}:
+        cap = config.get("distance_multiplier")
+        bounded = np.ones(len(values), dtype=bool) if cap is None else values <= thresholds * cap
+        accepted = baseline | (strong & bounded) if kind == "rescue" else strong & bounded
+    else:
+        raise ValueError(f"Unknown acceptance rule: {kind}")
+    return valid & accepted
+
 def threshold_values(threshold, predicted):
     """Per-predicted-fruit thresholds at inference; scalar v1 thresholds remain supported."""
     if isinstance(threshold, dict):

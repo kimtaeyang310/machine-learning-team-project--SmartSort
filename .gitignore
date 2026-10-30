@@ -60,3 +60,8 @@ env_test.png
 # 수동으로 만든 마스크는 Git에 포함
 !/outputs/manual_masks/
 !/outputs/manual_masks/**
+
+# 최종 선별 과일 시연 영상 한 파일만 공유
+!/outputs/presentation/
+/outputs/presentation/*
+!/outputs/presentation/tracked.mp4
