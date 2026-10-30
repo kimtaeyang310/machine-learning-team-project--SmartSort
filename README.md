@@ -310,7 +310,7 @@ Ollama가 실행 중인 상태에서 프로젝트 최상위 폴더에서 비서 
 - 과일별 숙도 개수, 모르는 과일 수, 처리 실패 수, 처리 시간과 FPS 확인
 - 예측 결과 CSV 저장
 
-이미지는 한 번에 최대 60장까지 처리하며, JPG, JPEG, PNG, BMP, WEBP, TIF, TIFF 형식을 지원합니다. 예측 CSV는 `outputs/predictions`에 새 파일로 저장됩니다.
+이미지는 한 번에 최대 100장까지 처리하며, JPG, JPEG, PNG, BMP, WEBP, TIF, TIFF 형식을 지원합니다. 예측 CSV는 `outputs/predictions`에 새 파일로 저장됩니다.
 
 ### 실행 제한
 
