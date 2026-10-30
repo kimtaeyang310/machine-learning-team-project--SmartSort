@@ -3,6 +3,8 @@
 All writes stay inside this experiment directory. Original source, metadata and
 production models are hashed before and after, and are never used as outputs.
 """
+# 별도 실험 폴더에서 2단계 모델과 통합 9클래스 모델을 비교합니다.
+# 원본 자료와 운영 모델의 해시를 전후 비교하여 기준 파일의 변경 여부를 확인합니다.
 from pathlib import Path
 from datetime import datetime, timezone
 from collections import Counter

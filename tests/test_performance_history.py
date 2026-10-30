@@ -1,3 +1,4 @@
+# 실행별 평가 기록 집계와 비교 그래프 생성을 검사합니다.
 import tempfile
 import unittest
 from unittest.mock import patch, Mock

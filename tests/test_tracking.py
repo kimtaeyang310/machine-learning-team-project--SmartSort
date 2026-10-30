@@ -1,4 +1,5 @@
 """Tracking identity, complete-view sampling and temporal refusal regressions."""
+# 과일 ID 유지, 온전한 관측의 투표 참여, 불확실한 결과의 표시 보류를 검사합니다.
 import unittest
 import numpy as np
 from src.tracking import FruitTracker,TemporalVote,Track,interior_observation

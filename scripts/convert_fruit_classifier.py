@@ -3,6 +3,8 @@
 Run with the environment that trained the input sklearn estimator. The resulting
 artifact uses a NumPy softmax head and can be read in the project's teamTC env.
 """
+# 학습된 sklearn 분류기 계수를 NumPy로 계산할 수 있는 형식으로 내보냅니다.
+# 재학습이나 거부 임계값 조정 없이 실행 환경 간 호환성을 확보하는 도구입니다.
 from datetime import datetime, timezone
 from pathlib import Path
 import argparse
@@ -60,7 +62,12 @@ def convert(model_path=MODEL_PATH):
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
-if __name__ == "__main__":
+def main(argv=None):
+    """명령행 인자를 해석하고 작업을 실행합니다. argv 생략 시 터미널 인자를 사용합니다."""
     parser = argparse.ArgumentParser(description="과일 종류 모델을 버전 독립적인 softmax 형식으로 변환")
     parser.add_argument("--model-path", type=Path, default=MODEL_PATH)
-    convert(parser.parse_args().model_path)
+    convert(parser.parse_args(argv).model_path)
+
+
+if __name__ == "__main__":
+    main()

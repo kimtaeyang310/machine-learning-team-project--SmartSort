@@ -1,4 +1,6 @@
 """Select a crop policy on development data; report frozen test results."""
+# 캐시된 crop 특징으로 거부 정책을 보정·선택한 뒤 고정 정책의 Test 결과를 보고합니다.
+# calibration은 임계값 계산에, selection은 후보 비교에 사용합니다.
 from pathlib import Path
 import argparse
 import json
@@ -12,6 +14,7 @@ from src.joint_core import CLASSES, FRUITS, dump, sha
 from src.rejection import unfamiliarity_scores, calibrate_per_fruit, threshold_values, acceptance_mask
 
 
+# 미검출도 평가에 포함하고 지원 과일 정확도와 미지원 과일 오수락을 따로 계산합니다.
 def evaluate(audit, probabilities, scores, policy, phase):
     indices = [i for i,r in enumerate(audit) if r['phase']==phase and not r['excluded_demo_group']]
     known = [i for i in indices if audit[i]['fruit'] in FRUITS]
@@ -54,6 +57,7 @@ def main(run):
     baseline_data = np.load(baseline_cache) if baseline_cache.is_file() else cache
     baseline_p,baseline_e = baseline_data['probabilities'],baseline_data['embeddings']
     valid = np.isfinite(p).all(axis=1)
+    # Test와 시연 유사 그룹은 정책 보정·선택 자료에서 제외합니다.
     development = [i for i,r in enumerate(audit) if valid[i] and r['phase']!='test' and not r['excluded_demo_group']]
     training = [i for i in development if audit[i]['phase']=='train' and audit[i]['fruit'] in FRUITS]
     reference = e[training]
@@ -81,6 +85,7 @@ def main(run):
     for method in ('msp','embedding'):
         policy = {'reference':reference,'thresholds':thresholds,'method':method}
         comparisons[method] = evaluate(audit,p,scores_crop,policy,'selection')
+    # 오수락 최소화, F1 최대화, 거부 최소화 순으로 후보 정책을 비교합니다.
     key = lambda m:(m['unknown_false_acceptance_rate'],-m['nine_class_macro_f1'],m['known_rejection_or_missing_rate'])
     method = min(comparisons,key=lambda m:(key(comparisons[m]),m!='embedding'))
     policy = {'reference':reference,'thresholds':thresholds,'method':method}
@@ -112,8 +117,13 @@ def main(run):
     print((run/'test_metrics.json').read_text(encoding='utf-8'),flush=True)
 
 
-if __name__ == '__main__':
+def cli(argv=None):
+    """명령행 인자를 해석하고 작업을 실행합니다. argv 생략 시 터미널 인자를 사용합니다."""
     parser = argparse.ArgumentParser()
     parser.add_argument('run',nargs='?',type=Path)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     main(args.run or Path((ROOT/'outputs/crop_calibration/latest_run.txt').read_text(encoding='utf-8')))
+
+
+if __name__ == "__main__":
+    cli()

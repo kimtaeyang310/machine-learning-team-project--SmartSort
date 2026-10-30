@@ -1,4 +1,6 @@
 """Replace demo slot 1 with a correctly accepted held-out ripe mandarin."""
+# 시연 첫 귤 사진을 분류기가 올바르게 수락한 보류 자료로 교체합니다.
+# 선별한 시연 사례이므로 전체 자료의 정확도를 대표하는 표본은 아닙니다.
 from pathlib import Path
 from collections import Counter
 import copy

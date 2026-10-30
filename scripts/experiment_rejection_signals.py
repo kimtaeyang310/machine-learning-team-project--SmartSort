@@ -1,4 +1,5 @@
 """Fixed-network comparison of distance, confidence, margin and hybrid rejection."""
+# 가중치를 고정하고 거리·최대 확률·상위 확률 차이·혼합 규칙의 거부 성능을 비교합니다.
 from pathlib import Path
 from itertools import product
 import copy

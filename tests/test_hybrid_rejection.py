@@ -1,4 +1,5 @@
 """Hybrid rejection must preserve legacy gates and enforce rescue bounds."""
+# 기존 거리 규칙 호환성과 혼합 규칙의 추가 수락 한도를 검사합니다.
 import unittest
 import numpy as np
 from src.joint_core import CLASSES,NinePredictor

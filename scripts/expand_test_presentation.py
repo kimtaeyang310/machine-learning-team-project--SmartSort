@@ -1,4 +1,5 @@
 """Expand the selected-test demo: ripe tomato replacement, two extra examples."""
+# 선별 Test 시연의 토마토 사진을 교체하고 예시를 추가하는 자료 구성 스크립트입니다.
 from pathlib import Path
 import json
 import math

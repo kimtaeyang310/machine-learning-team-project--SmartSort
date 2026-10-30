@@ -1,4 +1,5 @@
 """Retrain the photo classifier with mandarin M06/M09 held out as Test."""
+# 귤 M06·M09를 Test로 남긴 조건에서 사진 분류기를 재학습하고 평가합니다.
 import csv
 import json
 import shutil

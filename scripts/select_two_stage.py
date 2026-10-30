@@ -1,4 +1,5 @@
 """Freeze a two-stage policy on calibration/selection, then score regression tests."""
+# 종류 판정과 숙도를 분리한 모델의 정책을 검증 자료로 고정한 뒤 회귀 평가합니다.
 from pathlib import Path
 from itertools import product
 import copy

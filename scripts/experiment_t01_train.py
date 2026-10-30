@@ -1,4 +1,5 @@
 """Restore all T01 photos to fitting and rerun the fixed photo-model protocol."""
+# T01 사진을 학습 쪽으로 되돌린 조건에서 정해진 사진 모델 학습·평가를 재실행합니다.
 import csv
 import json
 import shutil
@@ -120,8 +121,13 @@ def main(random_unripe40=False):
     print('COMPLETE', run, json.dumps(after['per_fruit'], ensure_ascii=False), flush=True)
 
 
-if __name__ == '__main__':
+def cli(argv=None):
+    """명령행 인자를 해석하고 작업을 실행합니다. argv 생략 시 터미널 인자를 사용합니다."""
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--random-unripe40', action='store_true')
-    main(parser.parse_args().random_unripe40)
+    main(parser.parse_args(argv).random_unripe40)
+
+
+if __name__ == "__main__":
+    cli()

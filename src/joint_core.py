@@ -2,6 +2,9 @@
 
 Promoted from the verified isolated experiment. No legacy model is loaded here.
 """
+# 학습·추론·평가에서 함께 쓰는 계산을 모았습니다.
+# 9클래스는 과일 3종 × 숙도 3단계이며 embedding은 사진 특징을 숫자 벡터로 표현한 값입니다.
+# phase는 train(학습), calibration(임계값 보정), selection(정책 선택), test(평가)입니다.
 from pathlib import Path
 import csv, hashlib, json, shutil
 from time import perf_counter
@@ -15,10 +18,12 @@ ROOT = Path(__file__).resolve().parents[1]
 FRUITS = ("banana", "mandarin", "tomato")
 STAGES = ("unripe", "ripe", "overripe")
 CLASSES = sorted(f"{fruit}_{stage}" for fruit in FRUITS for stage in STAGES)
+# 파일 내용의 SHA-256 지문으로 학습 자료나 모델의 변경 여부를 확인합니다.
 def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+# 부모 폴더를 준비하고 한글을 읽을 수 있는 JSON으로 저장합니다.
 def dump(path, value):
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     Path(path).write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -26,6 +31,7 @@ def dump(path, value):
 
 
 
+# YOLO용 클래스별 폴더를 만듭니다. 여기의 val은 API 형식용 학습 사진이며 평가용이 아닙니다.
 def materialize(samples, destination, fruit=None):
     """Copy only fitting photos; val has one Train photo/class for the API, not scoring."""
     destination = Path(destination)
@@ -33,6 +39,7 @@ def materialize(samples, destination, fruit=None):
     for split in ("train", "val"):
         for label in classes:
             (destination / split / label).mkdir(parents=True, exist_ok=True)
+    # val에는 클래스별 학습 사진 한 장을 복사하며 실제 검증은 별도 phase 자료로 수행합니다.
     seen = set()
     for sample in samples:
         if sample["phase"] != "train" or sample["fruit"] not in FRUITS:
@@ -53,6 +60,7 @@ def materialize(samples, destination, fruit=None):
     return destination.resolve()
 
 
+# 지정 epoch 학습이 완료된 last.pt가 있으면 재사용하고 없으면 고정 설정으로 학습합니다.
 def fit(data, destination, weights, config):
     checkpoint = destination / "weights" / "last.pt"
     history = destination / "results.csv"
@@ -78,6 +86,7 @@ def fit(data, destination, weights, config):
     return checkpoint
 
 
+# 한 번의 모델 실행으로 9개 확률과 분류 직전 특징 벡터를 함께 얻습니다.
 class NinePredictor:
     """One YOLO forward yields both probabilities and the pre-linear embedding."""
     def __init__(self, checkpoint, imgsz):
@@ -94,6 +103,7 @@ class NinePredictor:
         self.hook = self.network.model.model[-1].linear.register_forward_pre_hook(capture)
         self.policy = None
 
+    # 확률을 CLASSES 순서로 맞추고 특징 벡터의 길이를 1로 정규화합니다.
     def raw(self, path):
         self.captured.clear()
         source = path if isinstance(path, np.ndarray) else str(path)
@@ -107,9 +117,11 @@ class NinePredictor:
         if not self.captured or self.captured[-1].shape[0] != 1:
             raise ValueError("Missing YOLO pre-classifier embedding")
         vector = self.captured[-1][0]
+        # 벡터 길이를 맞추면 내적으로 코사인 유사도를 구할 수 있습니다. 0으로 나누기도 방지합니다.
         vector = vector / max(float(np.linalg.norm(vector)), 1e-12)
         return probabilities, vector
 
+    # 최고 확률 클래스를 후보로 남기고 거부 정책의 통과 여부를 별도로 계산합니다.
     def predict(self, path):
         probabilities, embedding = self.raw(path)
         candidate = CLASSES[int(probabilities.argmax())]
@@ -131,6 +143,7 @@ class NinePredictor:
 
 
 
+# 지원 과일의 오거부와 selection의 미지원 과일 오수락을 규칙별로 비교합니다.
 def rejection_comparison(samples, probabilities, scores, thresholds, phase):
     truth = np.array([s["fruit"] for s in samples])
     predicted = np.array([CLASSES[i].split("_", 1)[0] for i in probabilities.argmax(1)])
@@ -148,6 +161,7 @@ def rejection_comparison(samples, probabilities, scores, thresholds, phase):
     return result
 
 
+# Test를 제외하고 학습 특징을 참조 집합으로 만들어 거부 임계값과 점수를 선택합니다.
 def calibrate_nine(predictor, samples, directory):
     dev = [s for s in samples if s["phase"] != "test"]
     probabilities, embeddings = [], []
@@ -158,6 +172,7 @@ def calibrate_nine(predictor, samples, directory):
             print(f"9클래스 Train·검증 특징: {i + 1}/{len(dev)}", flush=True)
     probabilities, embeddings = np.asarray(probabilities), np.asarray(embeddings)
     train = np.array([s["phase"] == "train" for s in dev])
+    # 거리 기준에는 학습 사진만 넣어 검증·평가 사진이 자기 자신을 근거로 쓰지 않게 합니다.
     reference = embeddings[train]
     scores = unfamiliarity_scores(probabilities, embeddings, reference)
     np.savez_compressed(directory / "nine_development_predictions.npz", probabilities=probabilities,
@@ -167,6 +182,7 @@ def calibrate_nine(predictor, samples, directory):
     fruit_probabilities = np.eye(3)[fruit_choice]
     thresholds = calibrate_per_fruit(scores, fruit_probabilities, dev)
     comparison = rejection_comparison(dev, probabilities, scores, thresholds, "selection")
+    # 미지원 과일 오수락이 적은 방법을 우선하고 동률이면 지원 과일 오류 등을 비교합니다.
     method = min(comparison, key=lambda key: (comparison[key]["unknown_false_acceptance_rate"],
         comparison[key]["balanced_known_error"], comparison[key]["by_fruit_false_rejection_rate"]["tomato"], key != "embedding"))
     predictor.policy = {"reference": reference, "thresholds": thresholds, "method": method}
@@ -177,10 +193,12 @@ def calibrate_nine(predictor, samples, directory):
     return method
 
 
+# 거부·실패도 오답으로 반영한 9클래스 지표와 과일별 숙도 지표를 계산합니다.
 def performance_metrics(rows):
     known = [r for r in rows if r["truth_fruit"] in FRUITS]
     unknown = [r for r in rows if r["truth_fruit"] not in FRUITS]
     truth = [r["truth_class"] for r in known]
+    # 거부·실패를 빼면 성능이 과장되므로 상태 자체를 오답 예측으로 남깁니다.
     predicted = [r["candidate_class"] if r["status"] == "ok" else r["status"] for r in known]
     result = {"known_count": len(known), "unknown_count": len(unknown),
         "nine_class_macro_f1": float(f1_score(truth, predicted, labels=CLASSES, average="macro", zero_division=0)),

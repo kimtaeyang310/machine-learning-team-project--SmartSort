@@ -1,4 +1,5 @@
 """Summarize the frozen-network rejection experiment and the actual trade-offs."""
+# 고정 모델의 거부 규칙 실험에서 지원 과일 오거부와 미지원 과일 오수락을 함께 비교합니다.
 from pathlib import Path
 import json
 from src.joint import ROOT

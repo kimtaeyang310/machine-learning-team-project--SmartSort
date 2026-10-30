@@ -1,4 +1,5 @@
 """Read-only mandarin dataset/label audit and appearance review artifacts."""
+# 귤 라벨과 외관을 점검할 표·미리보기를 만들며 원본 라벨은 자동 수정하지 않습니다.
 from pathlib import Path
 from collections import Counter, defaultdict
 import csv

@@ -1,4 +1,6 @@
 """Production entry points for a single nine-class YOLO and rejection policy."""
+# 통합 모델의 실행 창구로 학습, 거부 정책 보정, 배포를 연결합니다.
+# 사진·폴더 예측과 Test 평가에 같은 분류기를 사용합니다.
 from pathlib import Path
 from datetime import datetime, timezone
 from time import perf_counter
@@ -17,21 +19,25 @@ PREDICT_DIR = ROOT / "data" / "predict_list"
 EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
 
 
+# 실행 폴더 이름에 사용할 UTC 시각을 마이크로초까지 포함합니다.
 def stamp():
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
 
 
+# 상대경로는 프로젝트 루트 기준으로 해석합니다.
 def resolve(path):
     path = Path(path)
     return (path if path.is_absolute() else ROOT / path).resolve()
 
 
+# 모델과 거부 정책을 한 번 읽어 여러 사진 예측에 재사용합니다.
 class JointClassifier:
     def __init__(self, model_dir=MODEL_DIR):
         from src.joint_core import NinePredictor
         self.directory = resolve(model_dir)
         metadata = json.loads((self.directory / "bundle.json").read_text(encoding="utf-8"))
         self.model_name = metadata.get("model_name", "yolov8n_cls_joint_nine")
+        # 가중치·정책·분할 목록이 배포 당시 묶음과 일치하는지 해시로 확인합니다.
         for name, expected in metadata["sha256"].items():
             actual = hashlib.sha256((self.directory / name).read_bytes()).hexdigest()
             if actual != expected:
@@ -59,9 +65,11 @@ class JointClassifier:
         accepted = result["status"] == "ok"
         fruit = result["candidate_fruit"]
         stage = result["candidate_ripeness"]
+        # 숙도 점수를 다시 합계 1로 만들지 않아 과일 종류의 불확실성도 유지합니다.
         stage_scores = {s: p for label, p in result["probabilities"].items()
                         for f, s in [label.split("_", 1)] if f == fruit}
         result["nine_probabilities"] = result["probabilities"]
+        # 후보는 진단용으로 남기되 거부된 사진의 사용자용 과일·숙도는 확정하지 않습니다.
         result.update(image_path=image_path, fruit=fruit if accepted else "unknown",
                       ripeness=stage if accepted else None, model=getattr(self, "model_name", "yolov8n_cls_joint_nine"),
                       probabilities=stage_scores if accepted else None, error="")
@@ -76,6 +84,7 @@ class JointClassifier:
         return result
 
 
+# 로딩·워밍업 후 사진별 결과와 처리 시간 요약을 함께 반환합니다.
 def predict_folder(folder_path=PREDICT_DIR, model_dir=MODEL_DIR):
     folder = resolve(folder_path)
     if not folder.is_dir():
@@ -114,6 +123,7 @@ def predict_folder(folder_path=PREDICT_DIR, model_dir=MODEL_DIR):
     return results, summary
 
 
+# P95는 처리 시간의 95백분위수이며 FPS는 초당 처리 건수입니다.
 def timing_summary(rows):
     times = np.array([r["total_ms"] for r in rows])
     counts = {s: sum(r["status"] == s for r in rows) for s in ("ok", "unknown", "failed")}
@@ -134,6 +144,7 @@ def publish(checkpoint, policy, manifest, origin, destination=MODEL_DIR, *, mode
     dump(staging / "bundle.json", {"format": 1, "imgsz": 224, "source": str(origin),
         "model_name": model_name,
         "sha256": {name: sha(staging / name) for name in ("model.pt", "policy.joblib", "split_manifest.json")}})
+    # 임시 묶음을 실제로 읽을 수 있는지 확인한 후 현재 모델을 교체합니다.
     JointClassifier(staging)  # Validate loadability before switching.
     if destination.exists():
         backup = ROOT / "outputs" / "joint_nine" / ("previous_" + stamp())
@@ -147,6 +158,7 @@ def publish(checkpoint, policy, manifest, origin, destination=MODEL_DIR, *, mode
     return destination
 
 
+# 라벨·원본·개체 분할을 검사하고 학습, 정책 보정, 배포 순서로 실행합니다.
 def train(epochs=6):
     from src.joint_core import materialize, fit, calibrate_nine, NinePredictor, dump, sha
     if epochs < 1:
@@ -163,6 +175,7 @@ def train(epochs=6):
     for s in samples:
         if sha(ROOT / s["path"]) != s["sha256"]:
             raise ValueError(f"학습 기준 사진이 변경됐습니다: {s['path']}")
+    # 같은 개체의 촬영본이 서로 다른 phase에 섞이면 데이터 누수가 발생합니다.
     groups = {}
     for s in samples:
         groups.setdefault(s["group"], set()).add(s["phase"])
@@ -181,6 +194,7 @@ def train(epochs=6):
     return run
 
 
+# 기록된 Test 목록을 평가하고 예측 원본·지표·보고서·이력 그래프를 남깁니다.
 def evaluate():
     from src.joint_core import performance_metrics, dump
     from src.predict import save_prediction_artifacts
@@ -225,10 +239,15 @@ def evaluate():
     return metrics
 
 
-if __name__ == "__main__":
+def main(argv=None):
+    """명령행 인자를 해석하고 작업을 실행합니다. argv 생략 시 터미널 인자를 사용합니다."""
     import argparse
     parser = argparse.ArgumentParser(description="통합 YOLO 학습·평가")
     parser.add_argument("task", choices=("train", "evaluate"))
     parser.add_argument("--epochs", type=int, default=6)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     train(args.epochs) if args.task == "train" else evaluate()
+
+
+if __name__ == "__main__":
+    main()

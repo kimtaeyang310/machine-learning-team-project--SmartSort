@@ -1,4 +1,6 @@
 """Verify tracking artifacts, build before/after video, and document stability."""
+# 추적 기록을 점검하고 전후 비교 영상과 안정성 보고서를 만듭니다.
+# 표시 변화가 줄었다는 사실과 분류 정확도가 높아졌다는 주장은 구분해야 합니다.
 from pathlib import Path
 import json
 import hashlib

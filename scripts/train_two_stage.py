@@ -1,4 +1,6 @@
 """Train kind-3 + three independent stage-3 models on the fixed crop split."""
+# 종류 3클래스 모델 하나와 과일별 숙도 3클래스 모델 세 개를 학습합니다.
+# 후속 정책 선택에 사용할 종류 확률·숙도 확률·특징 벡터도 저장합니다.
 from pathlib import Path
 from collections import Counter
 import json
@@ -13,23 +15,8 @@ from src.joint_core import dump,sha
 from src.two_stage import ClassifierHead,FRUITS,STAGES
 
 
-def main():
-    run=ROOT/'outputs/two_stage_experiment'/('run_'+stamp())
-    run.mkdir(parents=True)
-    current=ROOT/'models/joint_nine_crop'
-    baseline=json.loads((current/'bundle.json').read_text(encoding='utf-8'))
-    source=Path(baseline['source'])
-    audit=json.loads((source/'audit.json').read_text(encoding='utf-8'))
-    audit,changes=refresh_labels(audit,ROOT/'data/metadata/fruit_labels.csv')
-    groups={}
-    for r in audit:
-        groups.setdefault(r['group'],set()).add(r['phase'])
-        if sha(ROOT/r['path'])!=r['sha256']:
-            raise ValueError(f"Source changed: {r['path']}")
-    if any(len(v)>1 for v in groups.values()):
-        raise ValueError('Cross-phase group leakage')
-    dump(run/'audit.json',audit)
-    dump(run/'label_changes.json',changes)
+def prepare_head_datasets(audit, run):
+    """종류·숙도 모델별 학습 폴더를 만들고 클래스별 사진 수를 반환합니다."""
     heads={'kind':FRUITS,**{fruit+'_stage':STAGES for fruit in FRUITS}}
     counts={name:Counter() for name in heads}
     for name,labels in heads.items():
@@ -50,6 +37,27 @@ def main():
                 shutil.copy2(path,run/'datasets'/name/'val'/label/path.name);seen.add(label)
         if seen!=set(labels):
             raise ValueError(f'Missing training class: {name}')
+    return heads, counts
+
+
+def main():
+    run=ROOT/'outputs/two_stage_experiment'/('run_'+stamp())
+    run.mkdir(parents=True)
+    current=ROOT/'models/joint_nine_crop'
+    baseline=json.loads((current/'bundle.json').read_text(encoding='utf-8'))
+    source=Path(baseline['source'])
+    audit=json.loads((source/'audit.json').read_text(encoding='utf-8'))
+    audit,changes=refresh_labels(audit,ROOT/'data/metadata/fruit_labels.csv')
+    groups={}
+    for r in audit:
+        groups.setdefault(r['group'],set()).add(r['phase'])
+        if sha(ROOT/r['path'])!=r['sha256']:
+            raise ValueError(f"Source changed: {r['path']}")
+    if any(len(v)>1 for v in groups.values()):
+        raise ValueError('Cross-phase group leakage')
+    dump(run/'audit.json',audit)
+    dump(run/'label_changes.json',changes)
+    heads, counts = prepare_head_datasets(audit, run)
     config={'epochs_per_head':6,'imgsz':224,'batch':16,'device':'cpu','seed':42,
         'architecture':'kind-3 YOLO followed by a separate stage-3 YOLO for the selected fruit',
         'initial_checkpoint':str(current/'model.pt'),'initial_sha256':baseline['sha256']['model.pt'],

@@ -1,4 +1,5 @@
 """Regression tests for promotion and unknown-result suppression."""
+# 모델 배포와 unknown 판정 시 숙도를 숨기는 동작을 검사합니다.
 import unittest
 from unittest.mock import Mock, patch
 from src.joint import JointClassifier, timing_summary

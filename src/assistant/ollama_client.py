@@ -269,6 +269,99 @@ def _format_task_result(action: str, result: dict[str, Any]) -> str:
     return json.dumps(result, ensure_ascii=False, indent=2)
 
 
+def _resolve_fruit_scope(action, fruit_mentions, normalized_text):
+    """과일 이름과 전체 범위를 검증합니다. 실행할 수 없는 요청은 기존 안내 문구로 거부합니다."""
+    aliases = {
+        "바나나": "banana",
+        "banana": "banana",
+        "감귤": "mandarin",
+        "귤": "mandarin",
+        "mandarin": "mandarin",
+        "토마토": "tomato",
+        "tomato": "tomato",
+    }
+
+    supported_fruits = []
+    unsupported_fruits = []
+
+    scope_words = {
+        "전체",
+        "전체 과일",
+        "모든 과일",
+        "모든",
+        "모두",
+        "전부",
+        "all",
+        "all fruits",
+    }
+
+    for raw_name in fruit_mentions:
+        name = raw_name.strip().lower()
+
+        if not name or name in scope_words:
+            continue
+
+        canonical = aliases.get(name)
+
+        if canonical not in ALLOWED_FRUITS:
+            unsupported_fruits.append(raw_name.strip())
+        elif canonical not in supported_fruits:
+            supported_fruits.append(canonical)
+
+    # 미지원 과일이 명시되면 폴더 확인이나 YOLO 실행 전에 종료합니다.
+    if unsupported_fruits:
+        names = ", ".join(unsupported_fruits)
+        raise ValueError(
+            f"{names}은 현재 숙도 판별 지원 항목에 없어 "
+            "예측을 실행하지 않았어요. "
+            "지원하는 과일은 바나나, 감귤, 토마토입니다."
+        )
+
+    fruit = None
+    all_fruits = False
+
+    if len(supported_fruits) == 1:
+        fruit = supported_fruits[0]
+
+    elif len(supported_fruits) > 1:
+        # 현재 도구는 과일 하나 또는 세 종류 전체 집계를 지원합니다.
+        if set(supported_fruits) == ALLOWED_FRUITS:
+            fruit = None
+            all_fruits = action == "analyze_folder"
+        else:
+            raise ValueError(
+                "현재는 과일 하나 또는 전체 과일을 대상으로 처리할 수 있어요. "
+                "과일 하나를 지정하거나 “전체 과일”이라고 말씀해 주세요."
+            )
+
+    elif action == "analyze_folder":
+        # 분류기의 scope뿐 아니라 사용자 원문도 함께 확인합니다.
+        all_scope_phrases = (
+            "전체 과일",
+            "모든 과일",
+            "전체 사진",
+            "모든 사진",
+            "폴더 전체",
+            "전부 분석",
+            "모두 분석",
+        )
+
+        explicit_all = any(
+            phrase in normalized_text
+            for phrase in all_scope_phrases
+        )
+
+        if explicit_all:
+            all_fruits = True
+        else:
+            raise ValueError(
+                "어떤 과일을 분석할까요? "
+                "바나나, 감귤, 토마토 중 하나를 지정하거나 "
+                "“전체 과일”이라고 말씀해 주세요."
+            )
+    return fruit, all_fruits
+
+
 class OllamaAssistant:
     """요청 분류, 지원 과일 검사, 폴더 확인과 작업 실행을 관리합니다."""
 
@@ -419,94 +512,10 @@ class OllamaAssistant:
                 "지원하지 않는 작업이라 실행하지 않았어요."
             )
 
-        aliases = {
-            "바나나": "banana",
-            "banana": "banana",
-            "감귤": "mandarin",
-            "귤": "mandarin",
-            "mandarin": "mandarin",
-            "토마토": "tomato",
-            "tomato": "tomato",
-        }
-
-        supported_fruits = []
-        unsupported_fruits = []
-
-        scope_words = {
-            "전체",
-            "전체 과일",
-            "모든 과일",
-            "모든",
-            "모두",
-            "전부",
-            "all",
-            "all fruits",
-        }
-
-        for raw_name in fruit_mentions:
-            name = raw_name.strip().lower()
-
-            if not name or name in scope_words:
-                continue
-
-            canonical = aliases.get(name)
-
-            if canonical not in ALLOWED_FRUITS:
-                unsupported_fruits.append(raw_name.strip())
-            elif canonical not in supported_fruits:
-                supported_fruits.append(canonical)
-
-        # 미지원 과일이 명시되면 폴더 확인이나 YOLO 실행 전에 종료합니다.
-        if unsupported_fruits:
-            names = ", ".join(unsupported_fruits)
-            return self._reply(
-                f"{names}은 현재 숙도 판별 지원 항목에 없어 "
-                "예측을 실행하지 않았어요. "
-                "지원하는 과일은 바나나, 감귤, 토마토입니다."
-            )
-
-        fruit = None
-        all_fruits = False
-
-        if len(supported_fruits) == 1:
-            fruit = supported_fruits[0]
-
-        elif len(supported_fruits) > 1:
-            # 현재 도구는 과일 하나 또는 세 종류 전체 집계를 지원합니다.
-            if set(supported_fruits) == ALLOWED_FRUITS:
-                fruit = None
-                all_fruits = action == "analyze_folder"
-            else:
-                return self._reply(
-                    "현재는 과일 하나 또는 전체 과일을 대상으로 처리할 수 있어요. "
-                    "과일 하나를 지정하거나 “전체 과일”이라고 말씀해 주세요."
-                )
-
-        elif action == "analyze_folder":
-            # 분류기의 scope뿐 아니라 사용자 원문도 함께 확인합니다.
-            all_scope_phrases = (
-                "전체 과일",
-                "모든 과일",
-                "전체 사진",
-                "모든 사진",
-                "폴더 전체",
-                "전부 분석",
-                "모두 분석",
-            )
-
-            explicit_all = any(
-                phrase in normalized_text
-                for phrase in all_scope_phrases
-            )
-
-            if explicit_all:
-                all_fruits = True
-            else:
-                return self._reply(
-                    "어떤 과일을 분석할까요? "
-                    "바나나, 감귤, 토마토 중 하나를 지정하거나 "
-                    "“전체 과일”이라고 말씀해 주세요."
-                )
+        try:
+            fruit, all_fruits = _resolve_fruit_scope(action, fruit_mentions, normalized_text)
+        except ValueError as error:
+            return self._reply(str(error))
 
         # 최근 결과 조회 등은 과일을 생략하면 전체 결과를 조회합니다.
         # 새 분석 작업에서만 폴더 승인이 필요합니다.

@@ -1,4 +1,5 @@
 """Apply the authorized M06-M09 split change and retrain the video crop model."""
+# M06~M09 분할을 바꾼 조건에서 영상 crop 모델을 다시 학습하고 정책을 비교합니다.
 from pathlib import Path
 from collections import Counter
 from itertools import product

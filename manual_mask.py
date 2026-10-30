@@ -14,6 +14,30 @@ MASK_DIR = PROJECT_ROOT / "outputs" / "manual_masks"
 FAILED_DIR = PROJECT_ROOT / "outputs" / "preprocessing_failed"
 
 
+def polygon_mask(points, width, height, display_width, display_height):
+    """화면 클릭 좌표를 원본 좌표로 옮겨 이진 마스크를 만듭니다."""
+    # 표시 좌표를 원본 사진 좌표로 변환합니다.
+    polygon = np.array(points, dtype=np.float64)
+    polygon[:, 0] *= width / display_width
+    polygon[:, 1] *= height / display_height
+    polygon = np.rint(polygon).astype(np.int32)
+
+    polygon[:, 0] = np.clip(
+        polygon[:, 0], 0, width - 1
+    )
+    polygon[:, 1] = np.clip(
+        polygon[:, 1], 0, height - 1
+    )
+
+    mask = np.zeros(
+        (height, width),
+        dtype=np.uint8,
+    )
+    cv2.fillPoly(mask, [polygon], 255)
+    return mask
+
+
+# 한글 경로를 지원하도록 파일 바이트를 읽고 OpenCV로 디코딩합니다.
 def read_image(path):
     path = Path(path)
     data = np.frombuffer(path.read_bytes(), dtype=np.uint8)
@@ -35,6 +59,7 @@ def mask_path_for(image_path):
     return MASK_DIR / relative.parent / (relative.name + ".png")
 
 
+# 클릭한 다각형 내부는 255, 배경은 0인 원본 크기 마스크를 저장합니다.
 def annotate(image_path):
     image_path = Path(image_path).resolve()
     output_path = mask_path_for(image_path)
@@ -140,24 +165,7 @@ def annotate(image_path):
                     print("외곽점을 3개 이상 지정하세요.")
                     continue
 
-                # 표시 좌표를 원본 사진 좌표로 변환합니다.
-                polygon = np.array(points, dtype=np.float64)
-                polygon[:, 0] *= width / display_width
-                polygon[:, 1] *= height / display_height
-                polygon = np.rint(polygon).astype(np.int32)
-
-                polygon[:, 0] = np.clip(
-                    polygon[:, 0], 0, width - 1
-                )
-                polygon[:, 1] = np.clip(
-                    polygon[:, 1], 0, height - 1
-                )
-
-                mask = np.zeros(
-                    (height, width),
-                    dtype=np.uint8,
-                )
-                cv2.fillPoly(mask, [polygon], 255)
+                mask = polygon_mask(points, width, height, display_width, display_height)
 
                 if not np.any(mask):
                     print("마스크가 비어 있습니다. 다시 지정하세요.")
@@ -181,6 +189,7 @@ def annotate(image_path):
         cv2.destroyAllWindows()
 
 
+# 오류 보고서에서 실제로 존재하는 원본 사진 경로를 중복 없이 모읍니다.
 def find_failed_images(failed_dir):
     paths = set()
 

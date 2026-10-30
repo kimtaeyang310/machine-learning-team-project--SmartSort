@@ -1,4 +1,6 @@
 """Inspect the mandarin ROI and compare fixed preprocessing on selection only."""
+# 귤 관심 영역의 전처리 방식을 selection 자료에서 비교합니다.
+# 같은 사진도 전처리에 따라 모델의 예측이 어떻게 달라지는지 확인하는 실험입니다.
 from pathlib import Path
 import json
 import hashlib

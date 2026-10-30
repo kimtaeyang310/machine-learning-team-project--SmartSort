@@ -1,9 +1,12 @@
 """Refresh CSV labels and train/test membership, retaining development phases."""
+# CSV의 최신 숙도와 분할을 기존 사진 목록에 반영합니다.
+# 같은 개체가 학습·검증·평가에 나뉘면 평가가 부풀려지므로 그룹 단위로 검사합니다.
 import csv
 import json
 from pathlib import Path
 
 
+# 기존 목록을 복사하고 활성 등록 자료만 추가하며 동일 경로의 식별 정보가 다르면 중단합니다.
 def merge_registered_samples(samples, registry_path):
     """Include explicitly registered new sources; keep raw files and snapshots intact."""
     merged = [dict(sample) for sample in samples]
@@ -24,6 +27,7 @@ def merge_registered_samples(samples, registry_path):
     return merged
 
 
+# 귤·토마토 CSV 라벨을 반영하고 갱신 목록과 변경 내역을 함께 반환합니다.
 def refresh_labels(samples, csv_path):
     labels = {}
     with open(csv_path, encoding="utf-8-sig", newline="") as file:

@@ -1,4 +1,5 @@
 """Reproducible YOLOv8n vs YOLO26n comparison, confined to the lab."""
+# 동일한 실험 환경에서 YOLOv8n과 YOLO26n의 학습·평가 결과를 비교합니다.
 import json
 import argparse
 import csv

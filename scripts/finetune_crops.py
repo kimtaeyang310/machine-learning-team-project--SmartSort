@@ -1,4 +1,6 @@
 """Fixed six-epoch crop fine-tuning; original bundle is never overwritten."""
+# 잘라낸 과일 사진에 맞춰 6 epoch 동안 추가 학습합니다.
+# epoch는 학습 자료를 한 차례 순회하는 단위이며 결과는 원본 모델과 별도로 보관합니다.
 from pathlib import Path
 import json
 import hashlib

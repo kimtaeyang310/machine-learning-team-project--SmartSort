@@ -1,4 +1,5 @@
 """New-source registration and grouping tests."""
+# 신규 귤 등록 자료의 병합과 원본·증강 사진 그룹 처리를 검사합니다.
 import json
 import tempfile
 import unittest

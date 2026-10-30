@@ -1,4 +1,5 @@
 """Diagnose the frozen two-stage policies after selection and write results."""
+# 선택이 끝난 2단계 모델 정책을 분석하고 결과 보고서를 만듭니다.
 from pathlib import Path
 import json
 import cv2

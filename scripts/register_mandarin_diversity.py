@@ -1,4 +1,6 @@
 """Register all new citrus as user-defined ripe; group source/augmentation families."""
+# 추가 귤을 지정된 적숙 라벨로 등록하고 원본·증강·유사 사진을 같은 그룹으로 묶습니다.
+# 등록 목록과 라벨 CSV를 갱신하므로 단순 조회가 아닌 데이터 등록 단계입니다.
 from pathlib import Path
 from collections import Counter,defaultdict
 import csv
@@ -16,26 +18,35 @@ from src.video import detect_regions,crop_region,load_font
 from scripts.calibrate_crops import prepare_frame
 
 
-def canonical_name(name):
-    match=re.search(r'Screen Shot .+',name)
-    return match.group(0) if match else name
+def build_registration_rows(ordered):
+    """고정 난수로 그룹을 분할하고 등록 CSV·출처 기록을 구성합니다."""
+    rng=np.random.default_rng(42)
+    # 사진 대신 그룹을 섞어 train 60%, calibration 15%, selection 15%, 나머지 test로 배정합니다.
+    permutation=rng.permutation(len(ordered))
+    n=len(ordered);train_end=round(n*.60);cal_end=train_end+round(n*.15);selection_end=cal_end+round(n*.15)
+    phases={}
+    for rank,i in enumerate(permutation):
+        phases[int(i)]='train' if rank<train_end else 'calibration' if rank<cal_end else 'selection' if rank<selection_end else 'test'
+    mapping={};csv_new=[];group_records=[]
+    for i,cluster in enumerate(ordered):
+        token=hashlib.sha256('\n'.join(cluster).encode()).hexdigest()[:12]
+        fruit_id='N1029_'+token
+        phase=phases[i]
+        group_id=fruit_id+'_20261029'
+        csv_new.append({'fruit':'mandarin','fruit_id':fruit_id,'date':'2026-10-29','ripeness':'ripe',
+                        'group_id':group_id,'split':'test' if phase=='test' else 'train','phase':phase})
+        group_records.append({'fruit_id':fruit_id,'group':'mandarin:'+fruit_id,'phase':phase,
+            'source_families':cluster,'date_semantics':'2026-10-29 is registration date; screenshot timestamp is not verified capture date'})
+        for name in cluster:mapping[name]=(fruit_id,group_id,phase)
+    return mapping, csv_new, group_records
 
 
-def descriptor(image):
-    small=cv2.resize(image,(64,64),interpolation=cv2.INTER_AREA)
-    gray=cv2.cvtColor(small,cv2.COLOR_BGR2GRAY)
-    tiny=cv2.resize(gray,(9,8),interpolation=cv2.INTER_AREA)
-    return small.astype(float),(tiny[:,1:]>tiny[:,:-1]).ravel()
-
-
-def main():
-    source=ROOT/'data/raw/1029mandarin'
-    paths=sorted(p for p in source.iterdir() if p.is_file() and p.suffix.lower() in {'.png','.jpg','.jpeg','.webp'})
-    if not paths:raise ValueError('No new images')
-    run=ROOT/'outputs/mandarin_diversity'/('run_'+stamp());run.mkdir(parents=True)
+def group_source_families(paths):
+    """파일명 가족과 시각적으로 유사한 사진을 묶고 검토용 근거를 반환합니다."""
     families=defaultdict(list)
     for path in paths:families[canonical_name(path.name)].append(path)
     names=sorted(families)
+    # 합집합 자료구조로 유사한 원본 가족을 묶어 증강본이 서로 다른 분할에 들어가지 않게 합니다.
     parent=list(range(len(names)))
     def find(i):
         while parent[i]!=i:
@@ -65,23 +76,30 @@ def main():
     clusters=defaultdict(list)
     for i,name in enumerate(names):clusters[find(i)].append(name)
     ordered=sorted(clusters.values(),key=lambda v:v[0])
-    rng=np.random.default_rng(42)
-    permutation=rng.permutation(len(ordered))
-    n=len(ordered);train_end=round(n*.60);cal_end=train_end+round(n*.15);selection_end=cal_end+round(n*.15)
-    phases={}
-    for rank,i in enumerate(permutation):
-        phases[int(i)]='train' if rank<train_end else 'calibration' if rank<cal_end else 'selection' if rank<selection_end else 'test'
-    mapping={};csv_new=[];group_records=[]
-    for i,cluster in enumerate(ordered):
-        token=hashlib.sha256('\n'.join(cluster).encode()).hexdigest()[:12]
-        fruit_id='N1029_'+token
-        phase=phases[i]
-        group_id=fruit_id+'_20261029'
-        csv_new.append({'fruit':'mandarin','fruit_id':fruit_id,'date':'2026-10-29','ripeness':'ripe',
-                        'group_id':group_id,'split':'test' if phase=='test' else 'train','phase':phase})
-        group_records.append({'fruit_id':fruit_id,'group':'mandarin:'+fruit_id,'phase':phase,
-            'source_families':cluster,'date_semantics':'2026-10-29 is registration date; screenshot timestamp is not verified capture date'})
-        for name in cluster:mapping[name]=(fruit_id,group_id,phase)
+    return families, ordered, reps, near
+
+
+# 증강 접두사가 붙어도 원본 스크린샷 이름을 기준으로 출처를 묶습니다.
+def canonical_name(name):
+    match=re.search(r'Screen Shot .+',name)
+    return match.group(0) if match else name
+
+
+# 축소 색상 영상과 인접 밝기 비교 비트를 만들어 유사 사진 후보를 찾습니다.
+def descriptor(image):
+    small=cv2.resize(image,(64,64),interpolation=cv2.INTER_AREA)
+    gray=cv2.cvtColor(small,cv2.COLOR_BGR2GRAY)
+    tiny=cv2.resize(gray,(9,8),interpolation=cv2.INTER_AREA)
+    return small.astype(float),(tiny[:,1:]>tiny[:,:-1]).ravel()
+
+
+def main():
+    source=ROOT/'data/raw/1029mandarin'
+    paths=sorted(p for p in source.iterdir() if p.is_file() and p.suffix.lower() in {'.png','.jpg','.jpeg','.webp'})
+    if not paths:raise ValueError('No new images')
+    run=ROOT/'outputs/mandarin_diversity'/('run_'+stamp());run.mkdir(parents=True)
+    families, ordered, reps, near = group_source_families(paths)
+    mapping, csv_new, group_records = build_registration_rows(ordered)
     # An exact pixel/SHA duplicate with old data must not silently cross splits.
     baseline_dir=ROOT/'models/joint_nine_crop'
     bundle=json.loads((baseline_dir/'bundle.json').read_text(encoding='utf-8'))

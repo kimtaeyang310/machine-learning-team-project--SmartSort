@@ -1,3 +1,4 @@
+# CSV 반영 시 검증 분할을 유지하고 같은 개체의 분할 충돌을 막는지 검사합니다.
 import tempfile
 import unittest
 from pathlib import Path

@@ -1,4 +1,5 @@
 """Video regressions: blank frames, foreground boxes and ndarray inference."""
+# 빈 배경 오검출과 전경 영역 검출, 메모리 이미지 입력 처리를 검사합니다.
 import unittest
 from unittest.mock import Mock
 import numpy as np
