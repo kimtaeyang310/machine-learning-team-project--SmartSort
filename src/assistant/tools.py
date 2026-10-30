@@ -24,7 +24,7 @@ from src.predict import (
 )
 
 
-MAX_IMAGES = 60
+MAX_IMAGES = 100
 OUTPUT_DIR = Path(__file__).resolve().parents[2] / "outputs" / "predictions"
 
 ALLOWED_FRUITS = {"banana", "mandarin", "tomato"}
