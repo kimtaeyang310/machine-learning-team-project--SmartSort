@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -242,8 +243,17 @@ def _format_task_result(action: str, result: dict[str, Any]) -> str:
         ]
 
         for item in images:
-            candidate = item.get("candidate_class") or "후보 정보 없음"
-            lines.append(f"- {item.get('image', '이미지 이름 미상')}: {candidate}")
+            candidate = item.get("candidate_class") or ""
+            fruit, separator, stage = candidate.partition("_")
+            if separator and fruit in FRUIT_NAMES and stage in RIPENESS_NAMES:
+                fruit_name = "귤" if fruit == "mandarin" else FRUIT_NAMES[fruit]
+                candidate_text = f"{RIPENESS_NAMES[stage]} {fruit_name}"
+            else:
+                candidate_text = candidate or "정보 없음"
+            lines.append(
+                f"- {item.get('image', '이미지 이름 미상')}: "
+                f"모름 (판정 전 후보: {candidate_text})"
+            )
 
         if not images:
             lines.append("표시할 모르는 과일 이미지가 없습니다.")
@@ -423,6 +433,23 @@ class OllamaAssistant:
         })
 
         normalized_text = " ".join(user_text.lower().split())
+
+        # 정답이 없는 예측 결과를 성능 평가로 오인해 요약 도구를 실행하지 않습니다.
+        metric_requested = re.search(
+            r"정확도|accuracy|f[\s-]*1(?:[\s-]*score)?|에프\s*원",
+            normalized_text,
+        )
+        evaluation_requested = any(
+            word in normalized_text
+            for word in ("계산", "점수", "측정", "평가", "얼마", "몇", "분석한", "예측 결과", "분석 결과")
+        )
+        if metric_requested and evaluation_requested:
+            self.pending_intent = None
+            return self._reply(
+                "정답 라벨이 제공되지 않았으므로 정확도와 F1 점수를 계산할 수 없습니다. "
+                "현재 결과는 모델의 예측이며, 성능을 평가하려면 각 사진의 실제 과일 종류와 "
+                "숙도에 대한 정답 라벨이 필요합니다."
+            )
 
         confirmations = {
             "네",
