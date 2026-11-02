@@ -965,6 +965,7 @@ python -m unittest tests.test_joint tests.test_joint_labels tests.test_performan
 - [Kaggle — Fruit Ripeness: Unripe, Ripe and Rotten](https://www.kaggle.com/datasets/leftin/fruit-ripeness-unripe-ripe-and-rotten)
 - [Kaggle — Riped and Unriped Tomato Dataset](https://www.kaggle.com/datasets/sumn2u/riped-and-unriped-tomato-dataset)
 (https://www.kaggle.com/datasets/techkhid/riped-and-unriped-tomato-dataset)
+- [Kaggle — Fruit Ripeness: Unripe, Ripe, and Rotten](https://www.kaggle.com/datasets/leftin/fruit-ripeness-unripe-ripe-and-rotten)
 - [Roboflow Universe — 기존 README에 기록된 참조 링크](https://universe.roboflow.com/models/object-detection)
 
 Roboflow 링크는 특정 데이터셋 버전을 식별하지 않는 기존 참조입니다.
