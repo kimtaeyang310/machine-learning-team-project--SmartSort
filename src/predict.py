@@ -13,7 +13,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if __name__ == "__main__" and not __package__:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.agent.decision import DEFAULT_CONFIDENCE_THRESHOLD, REVIEW_REQUIRED_CLASSES
+from src.agent.decision import DEFAULT_CONFIDENCE_THRESHOLD
 
 PREDICT_DIR = PROJECT_ROOT / "data" / "predict_list"
 MODEL_PATH = PROJECT_ROOT / "models" / "joint_nine" / "model.pt"
@@ -40,9 +40,7 @@ def _build_prediction_manifest(results, model_path, source_folder):
         }),
         "agent_policy": {
             "confidence_threshold": DEFAULT_CONFIDENCE_THRESHOLD,
-            "human_review_classes": sorted(
-                [fruit, ripeness] for fruit, ripeness in REVIEW_REQUIRED_CLASSES
-            ),
+            "human_review_classes": [],
         },
         "python_version": platform.python_version(),
         "platform": platform.platform(),

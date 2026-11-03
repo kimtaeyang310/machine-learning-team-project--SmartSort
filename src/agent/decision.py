@@ -1,4 +1,4 @@
-"""예측 신뢰도와 취약 클래스를 바탕으로 다음 선별 행동을 결정합니다."""
+"""예측 신뢰도를 바탕으로 다음 선별 행동을 결정합니다."""
 
 from __future__ import annotations
 
@@ -6,8 +6,7 @@ from typing import Any, Literal, TypedDict
 
 
 DEFAULT_CONFIDENCE_THRESHOLD = 0.70
-# 현재 검증 결과에서 토마토 과숙 분류는 취약하므로 사람 확인을 우선합니다.
-REVIEW_REQUIRED_CLASSES = {("tomato", "overripe")}
+
 
 
 class PredictionInput(TypedDict, total=False):
@@ -50,10 +49,9 @@ def decide_next_action(
 
     판단 순서는 다음과 같습니다.
 
-    1. 검증상 취약한 과일·숙도 조합이면 사람 확인을 요청합니다.
-    2. 예측 확률을 얻지 못하면 사람 확인을 요청합니다.
-    3. 예측 숙도의 확률이 기준 미만이면 재촬영을 권고합니다.
-    4. 위 조건이 없으면 자동 분류를 제안합니다.
+    1. 예측 확률을 얻지 못하면 사람 확인을 요청합니다.
+    2. 예측 숙도의 확률이 기준 미만이면 재촬영을 권고합니다.
+    3. 위 조건이 없으면 자동 분류를 제안합니다.
 
     반환값에는 action, reason, suggested_label, confidence,
     requires_confirmation만 들어갑니다. 저장이나 사용자 확정은 여기서 하지 않습니다.
@@ -64,7 +62,6 @@ def decide_next_action(
     if not 0.0 <= confidence_threshold <= 1.0:
         raise ValueError("confidence_threshold는 0과 1 사이여야 합니다.")
 
-    fruit = prediction.get("fruit")
     ripeness = prediction.get("ripeness")
     probabilities = prediction.get("probabilities")
     confidence = _predicted_class_confidence(probabilities, ripeness)
@@ -78,14 +75,7 @@ def decide_next_action(
         "requires_confirmation": False,
     }
 
-    # 취약 클래스 예외를 확률 검사보다 먼저 적용해 자동 확정을 막습니다.
-    if (fruit, ripeness) in REVIEW_REQUIRED_CLASSES:
-        result.update(
-            action="human_review",
-            reason="토마토 과숙 분류는 검증 성능이 낮아 사람 확인이 필요합니다.",
-            requires_confirmation=True,
-        )
-    elif confidence is None:
+    if confidence is None:
         result.update(
             action="human_review",
             reason="예측 확률을 확인할 수 없어 자동 분류하지 않습니다.",

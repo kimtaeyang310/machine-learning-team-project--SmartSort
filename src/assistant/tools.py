@@ -14,7 +14,6 @@ import numpy as np
 
 from src.agent.decision import (
     DEFAULT_CONFIDENCE_THRESHOLD,
-    REVIEW_REQUIRED_CLASSES,
 )
 from src.joint import EXTENSIONS, MODEL_DIR
 from src.predict import (
@@ -472,9 +471,7 @@ def explain_model() -> dict[str, Any]:
         "unknown_detection_method": policy.get("method"),
         "unknown_detection_thresholds": policy.get("thresholds"),
         "agent_confidence_threshold": DEFAULT_CONFIDENCE_THRESHOLD,
-        "review_required_classes": [
-            list(item) for item in sorted(REVIEW_REQUIRED_CLASSES)
-        ],
+        "review_required_classes": [],
         "note": (
             "모르는 과일 거리 기준과 에이전트 확률 기준은 서로 다릅니다. "
             "모델 확률은 정답을 보장하지 않습니다."
